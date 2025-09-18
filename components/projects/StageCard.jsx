@@ -5,61 +5,107 @@ import { useFormContext, useFieldArray } from "react-hook-form";
 import FieldError from "./FieldError";
 import RequestRow from "./RequestRow";
 import { MAX_REQUESTS_PER_STAGE } from "../../lib/constants";
+import styles from "./FormStyles.module.css";
+
+const createEmptyRequest = () => ({
+  type: "materials",
+  description: "",
+  quantity: undefined,
+  unit: "",
+  amount: undefined,
+  currency: "",
+});
 
 export default function StageCard({ index, removeStage, canRemove }) {
-  const { control, register, formState: { errors } } = useFormContext();
-  const { fields, append, remove } = useFieldArray({
-    control,
+  const { register, formState: { errors } } = useFormContext();
+  const { fields: requestFields, append: appendRequest, remove: removeRequest } = useFieldArray({
     name: `project.stages.${index}.requests`,
   });
 
+  const stageErrors = errors.project?.stages?.[index] ?? {};
+
   const base = `project.stages.${index}`;
+  const requestSummary = requestFields.length === 1 ? "1 pedido" : `${requestFields.length} pedidos`;
 
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 8, padding: 12, marginBottom: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <strong>Stage #{index + 1}</strong>
-        <button type="button" onClick={removeStage} disabled={!canRemove}>Eliminar</button>
+    <div className={styles.stageCard}>
+      <div className={styles.stageHeader}>
+        <div>
+          <div className={styles.stageTitle}>
+            <span className={styles.tag}>Etapa {index + 1}</span>
+            <span>Detalle de la etapa</span>
+          </div>
+          <div className={styles.stageMeta}>{requestSummary}</div>
+        </div>
+
+        <button
+          type="button"
+          onClick={removeStage}
+          disabled={!canRemove}
+          className={`${styles.button} ${styles.buttonDanger}`}
+        >
+          Eliminar etapa
+        </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div>
-          <label>Nombre *</label>
-          <input {...register(`${base}.name`)} />
-          <FieldError err={errors.project?.stages?.[index]?.name} />
+      <div className={styles.stageGrid}>
+        <div className={styles.field}>
+          <label className={styles.label}>Nombre *</label>
+          <input className={styles.control} {...register(`${base}.name`)} />
+          <FieldError err={stageErrors.name} />
         </div>
 
-        <div>
-          <label>Inicio *</label>
-          <input type="date" {...register(`${base}.startDate`)} />
-          <FieldError err={errors.project?.stages?.[index]?.startDate} />
+        <div className={styles.field}>
+          <label className={styles.label}>Inicio *</label>
+          <input type="date" className={styles.control} {...register(`${base}.startDate`)} />
+          <FieldError err={stageErrors.startDate} />
         </div>
 
-        <div>
-          <label>Fin *</label>
-          <input type="date" {...register(`${base}.endDate`)} />
-          <FieldError err={errors.project?.stages?.[index]?.endDate} />
+        <div className={styles.field}>
+          <label className={styles.label}>Fin *</label>
+          <input type="date" className={styles.control} {...register(`${base}.endDate`)} />
+          <FieldError err={stageErrors.endDate} />
         </div>
 
-        <div style={{ gridColumn: "1 / span 2" }}>
-          <label>Descripción</label>
-          <textarea {...register(`${base}.description`)} rows={2} />
+        <div className={`${styles.field} ${styles.stageDescription}`}>
+          <label className={styles.label}>Descripción</label>
+          <textarea className={`${styles.control} ${styles.textarea}`} {...register(`${base}.description`)} rows={2} />
         </div>
       </div>
 
       <div>
-        <em>Requests ({fields.length})</em>
-        {fields.map((rf, j) => (
-          <RequestRow key={rf.id} sIdx={index} rIdx={j} remove={() => remove(j)} />
-        ))}
+        <div className={styles.requestHeader}>
+          <span className={styles.tag}>Pedidos</span>
+          <span className={styles.requestCounter}>
+            {requestFields.length} / {MAX_REQUESTS_PER_STAGE}
+          </span>
+        </div>
 
-        <button
-          type="button"
-          disabled={fields.length >= MAX_REQUESTS_PER_STAGE}
-          onClick={() => append({ type: "materials", description: "", quantity: undefined, unit: "" })}
-        >
-          + Agregar request
-        </button>
+        <div className={styles.requestList}>
+          {requestFields.length === 0 ? (
+            <p className={styles.emptyState}>No agregaste pedidos a esta etapa aún.</p>
+          ) : (
+            requestFields.map((requestField, requestIndex) => (
+              <RequestRow
+                key={requestField.id}
+                sIdx={index}
+                rIdx={requestIndex}
+                remove={() => removeRequest(requestIndex)}
+              />
+            ))
+          )}
+        </div>
+
+        <div className={styles.actionsRight}>
+          <button
+            type="button"
+            disabled={requestFields.length >= MAX_REQUESTS_PER_STAGE}
+            onClick={() => appendRequest(createEmptyRequest())}
+            className={`${styles.button} ${styles.buttonSecondary}`}
+          >
+            + Agregar pedido
+          </button>
+        </div>
       </div>
     </div>
   );

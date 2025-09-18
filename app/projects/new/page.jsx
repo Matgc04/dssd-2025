@@ -7,6 +7,7 @@ import { projectSchema } from "../../../lib/validation/projectSchema";
 import { EXAMPLE_PROJECT } from "../../../lib/examples";
 import ProjectFields from "../../../components/projects/ProjectFields";
 import Stages from "../../../components/projects/Stages";
+import styles from "../../../components/projects/FormStyles.module.css";
 
 export default function NewProjectPage() {
   const methods = useForm({
@@ -45,14 +46,27 @@ export default function NewProjectPage() {
 
   return (
     <FormProvider {...methods}>
-      <div style={{ maxWidth: 960, margin: "24px auto", padding: 16 }}>
-        <h1>Nuevo Proyecto</h1>
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <div className={styles.formShell}>
+        <header className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>Nuevo proyecto</h1>
+          <p className={styles.pageSubtitle}>
+            Completa la información general y definí las etapas junto a sus pedidos para empezar a planificar.
+          </p>
+        </header>
+
+        <form className={styles.formBody} onSubmit={handleSubmit(onSubmit)} noValidate>
           <ProjectFields />
           <Stages />
-          <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
-            <button type="submit">Guardar</button>
-            <button type="button" onClick={() => setValue("project", EXAMPLE_PROJECT)}>
+
+          <div className={styles.formActions}>
+            <button type="submit" className={`${styles.button} ${styles.buttonPrimary}`}>
+              Guardar proyecto
+            </button>
+            <button
+              type="button"
+              className={`${styles.button} ${styles.buttonGhost}`}
+              onClick={() => setValue("project", EXAMPLE_PROJECT)}
+            >
               Rellenar ejemplo
             </button>
           </div>

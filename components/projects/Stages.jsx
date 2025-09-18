@@ -1,33 +1,57 @@
 "use client";
 
 import React from "react";
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
 import { MAX_STAGES } from "../../lib/constants";
 import StageCard from "./StageCard";
+import styles from "./FormStyles.module.css";
+
+const createEmptyStage = () => ({
+  name: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  requests: [],
+});
 
 export default function Stages() {
-  const { control } = useFormContext(); //Optional? im using FormProvider
-  const { fields, append, remove } = useFieldArray({ control, name: "project.stages" });
+  const { fields: stageFields, append, remove } = useFieldArray({ name: "project.stages" });
+
+  const canAddStage = stageFields.length < MAX_STAGES;
 
   return (
-    <fieldset style={{ border: "1px solid #ddd", padding: 16, borderRadius: 8 }}>
-      <legend><strong>Stages ({fields.length})</strong></legend>
+    <fieldset className={styles.section}>
+      <legend className={styles.legend}>
+        <span>Etapas</span>
+        <span className={styles.countBadge}>
+          {stageFields.length}
+          <span className={styles.countMax}>/ {MAX_STAGES}</span>
+        </span>
+      </legend>
 
-      {fields.map((sf, i) => (
-        <StageCard key={sf.id} index={i} removeStage={() => remove(i)} canRemove={fields.length > 1} />
-      ))}
-
-      <div style={{ marginTop: 12 }}>
-        <button
-          type="button"
-          disabled={fields.length >= MAX_STAGES}
-          onClick={() =>
-            append({ name: "", description: "", startDate: "", endDate: "", requests: [] })
-          }
-        >
-          + Agregar stage
-        </button>
+      <div className={styles.stageList}>
+        {stageFields.length === 0 ? (
+          <p className={styles.emptyState}>Todavía no definiste etapas para este proyecto.</p>
+        ) : (
+          stageFields.map((stageField, index) => (
+            <StageCard
+              key={stageField.id}
+              index={index}
+              removeStage={() => remove(index)}
+              canRemove={stageFields.length > 1}
+            />
+          ))
+        )}
       </div>
+
+      <button
+        type="button"
+        className={`${styles.button} ${styles.buttonSecondary} ${styles.addButton}`}
+        disabled={!canAddStage}
+        onClick={() => append(createEmptyStage())}
+      >
+        + Agregar etapa
+      </button>
     </fieldset>
   );
 }
