@@ -50,7 +50,7 @@ export default function NewProjectPage() {
         <header className={styles.pageHeader}>
           <h1 className={styles.pageTitle}>Nuevo proyecto</h1>
           <p className={styles.pageSubtitle}>
-            Completa la información general y definí las etapas junto a sus pedidos para empezar a planificar.
+            Complete la información general y defina las etapas junto a sus pedidos para empezar a planificar.
           </p>
         </header>
 

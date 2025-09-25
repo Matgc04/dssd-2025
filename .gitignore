@@ -25,3 +25,11 @@ yarn-error.log*
 
 # Next.js
 .next/
+
+# Flask y python
+instance/
+*.pyc
+__pycache__/
+venv/
+env/
+.venv/
