@@ -4,7 +4,7 @@ import { store } from "@/lib/store";
 import { newSid } from "@/lib/sessionStore";
  
 export async function GET(request) {
-    const BONITA = process.env.BONITA_URL || "http://172.28.224.1:8080"
+    const BONITA = process.env.BONITA_URL || "http://172.28.224.1:8080" //yo puse esta ip porque con WSL me arma quilombo con localhost
 
     const username = "walter.bates"
     const password = "bpm"
@@ -75,5 +75,5 @@ export async function GET(request) {
 
   console.log("Guardé sesión SID:", sid);
 
-  return NextResponse.json({ ok: true }); // no devolvemos tokens
+  return NextResponse.json({ ok: true }); 
 }
