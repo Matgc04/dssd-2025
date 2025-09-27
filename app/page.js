@@ -27,10 +27,14 @@ export default function Home() {
       const res = await fetch("/api/logout", { method: "GET" });
       const json = await res.json().catch(() => null);
       console.log("logout response status:", res.status, "body:", json);
-      alert("Logout successful");
+      if (res.ok) {
+        alert("Logout successful");
+      } else {
+        alert(`Logout failed with status ${res.status}`);
+      }
     } catch (err) {
         console.error("Logout error", err);
-        alert("Logout failed");
+        alert("Logout error");
     } finally {
       setLoading(false);
     }
