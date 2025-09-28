@@ -1,53 +1,17 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
 
 export default function Home() {
-  const [loading, setLoading] = useState(false);
-
-  async function handleLogin() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/login", { method: "GET" });
-      const json = await res.json().catch(() => null);
-      console.log("Login response status:", res.status, "body:", json);
-      alert("Login successful");
-    } catch (err) {
-        console.error("Login error", err);
-        alert("Login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleLogout() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/logout", { method: "GET" });
-      const json = await res.json().catch(() => null);
-      console.log("logout response status:", res.status, "body:", json);
-      if (res.ok) {
-        alert("Logout successful");
-      } else {
-        alert(`Logout failed with status ${res.status}`);
-      }
-    } catch (err) {
-        console.error("Logout error", err);
-        alert("Logout error");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div>
-      <h1>Project planning 👋</h1>
-      <p>
-        <Link href="/projects/new">Crear un nuevo proyecto</Link>
+    <section className="home-hero">
+      <h1 className="home-title">Project planning 👋</h1>
+      <p className="home-lead">
+        Centralizá la gestión de tus proyectos y ayuda a otras ongs en el mundo.
       </p>
-      <button onClick={handleLogin}>Iniciar sesion</button>
-      <button onClick={handleLogout}>Cerrar sesion</button>
-    </div>
+      <div className="home-actions">
+        <Link href="/projects/new" className="auth-submit">
+          Crear un nuevo proyecto
+        </Link>
+      </div>
+    </section>
   );
 }

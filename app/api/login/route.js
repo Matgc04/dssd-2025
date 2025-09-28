@@ -1,28 +1,44 @@
-import { cookies } from 'next/headers';
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { newSid } from "@/lib/sessionStore";
- 
-export async function GET(request) {
-    const BONITA = process.env.BONITA_URL || "http://172.28.224.1:8080" //yo puse esta ip porque con WSL me arma quilombo con localhost
 
-    const username = "walter.bates"
-    const password = "bpm"
+const BONITA =
+  process.env.BONITA_URL || "http://172.28.224.1:8080"; // yo puse esta ip porque con WSL me arma quilombo con localhost
+
+export async function POST(request) {
+  let payload;
+  try {
+    payload = await request.json();
+  } catch (err) {
+    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+  }
+
+  const username = payload?.username?.trim();
+  const password = payload?.password;
+
+  if (!username || !password) {
+    return NextResponse.json({ error: "Se necesita usuario y contraseña" }, { status: 400 });
+  }
 
   // 1) Login en Bonita
-    const loginRes = await fetch(`${BONITA}/bonita/loginservice`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "*/*",
-      },
-      body: new URLSearchParams({ username, password }).toString(),
-      redirect: "manual",
-    });
+  const loginRes = await fetch(`${BONITA}/bonita/loginservice`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "*/*",
+    },
+    body: new URLSearchParams({ username, password }).toString(),
+    redirect: "manual",
+  });
 
-    if (!loginRes.ok) {
-      return NextResponse.json({ error: "Login en Bonita falló" }, { status: loginRes.status });
-    }
+  if (!loginRes.ok) {
+    //console.log("Login en Bonita falló", loginRes.status, loginRes.headers);
+    return NextResponse.json(
+      { error: "Login en Bonita falló" },
+      { status: loginRes.status === 401 ? 401 : 500 }
+    );
+  }
 
   const raw =
     typeof loginRes.headers.raw === "function"
@@ -56,12 +72,16 @@ export async function GET(request) {
 
   // 2) crear SID y guardar en store con TTL
   const sid = newSid();
-  await store.set(sid, {
-    jsessionId: jsession, 
-    csrfToken,
-    bonitaBase: BONITA,
-    user: username,
-  }, 25 * 60);
+  await store.set(
+    sid,
+    {
+      jsessionId: jsession,
+      csrfToken,
+      bonitaBase: BONITA,
+      user: username,
+    },
+    25 * 60
+  );
 
   // setear cookie opaca para el cliente
   const cookieStore = await cookies();
@@ -75,5 +95,12 @@ export async function GET(request) {
 
   console.log("Guardé sesión SID:", sid);
 
-  return NextResponse.json({ ok: true }); 
+  return NextResponse.json({ ok: true, user: username });
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: "Use POST with credentials" },
+    { status: 405, headers: { Allow: "POST" } }
+  );
 }
