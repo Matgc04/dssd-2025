@@ -4,7 +4,7 @@ import { store } from "@/lib/store";
 import { newSid } from "@/lib/sessionStore";
 
 const BONITA =
-  process.env.BONITA_URL || "http://172.28.224.1:8080"; // yo puse esta ip porque con WSL me arma quilombo con localhost
+  process.env.BONITA_URL || "http://localhost:8080"; // yo puse esta ip http://172.28.224.1:8080 porque con WSL me arma quilombo con localhost
 
 export async function POST(request) {
   let payload;
@@ -51,8 +51,9 @@ export async function POST(request) {
       : null) ??
     [];
 
-  const jsession =
+  const jsessionCookie =
     setCookies.find((c) => c.startsWith("JSESSIONID=")) || null;
+  const jsessionId = jsessionCookie?.split(";")[0] ?? null;
   const tokenCookie =
     setCookies.find((c) => c.startsWith("X-Bonita-API-Token=")) || null;
 
@@ -66,7 +67,7 @@ export async function POST(request) {
 
   const csrfToken = headerToken ?? cookiePairToValue(tokenCookie);
 
-  if (!jsession || !csrfToken) {
+  if (!jsessionId || !csrfToken) {
     return NextResponse.json({ error: "Missing session or CSRF token" }, { status: 500 });
   }
 
@@ -75,7 +76,7 @@ export async function POST(request) {
   await store.set(
     sid,
     {
-      jsessionId: jsession,
+      jsessionId,
       csrfToken,
       bonitaBase: BONITA,
       user: username,
