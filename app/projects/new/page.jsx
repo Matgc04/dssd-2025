@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -9,6 +8,8 @@ import { EXAMPLE_PROJECT } from "@/lib/examples";
 import ProjectFields from "@/components/projects/ProjectFields";
 import Stages from "@/components/projects/Stages";
 import styles from "@/components/projects/FormStyles.module.css";
+
+const PROCESS_DISPLAY_NAME = "Creacion de proyecto y colaboracion de ONGs";
 
 export default function NewProjectPage() {
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,6 @@ export default function NewProjectPage() {
             startDate: "",
             endDate: "",
             requests: [
-              // default aligns with our enum values
               { type: "materials", description: "", quantity: undefined, unit: "" },
             ],
           },
@@ -42,26 +42,36 @@ export default function NewProjectPage() {
 
   const { handleSubmit, setValue } = methods;
 
-   const onSubmit = async (data) => {
-    console.log("Payload listo para enviar a Bonita / API:", data);
+  const onSubmit = async (formData) => {
+    console.log("Payload listo para enviar a Bonita / API:", formData);
     setLoading(true);
     try {
+      const payload = {
+        displayName: PROCESS_DISPLAY_NAME,
+        contract: {
+          project: formData.project,
+        },
+      };
+
       const res = await fetch("/api/projects/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json().catch(() => null);
       console.log("Create response status:", res.status, "body:", json);
 
       if (!res.ok) {
-        alert(`Request failed with status ${res.status}`);
+        const message = json?.error || `Request failed with status ${res.status}`;
+        alert(message);
+      } else {
+        const caseId = json?.casePayload?.caseId || json?.casePayload?.id || json?.casePayload?.case_id;
+        const successMessage = caseId
+          ? `Proyecto enviado. Bonita Case ID: ${caseId}`
+          : "Proyecto guardado correctamente";
+        alert(successMessage);
       }
-      else {
-        alert("Proyecto guardado correctamente");
-      }
-
     } catch (err) {
       console.error("Error creando proyecto", err);
       alert("Error al guardar proyecto");
@@ -85,13 +95,17 @@ export default function NewProjectPage() {
           <Stages />
 
           <div className={styles.formActions}>
-            <button type="submit" className={`${styles.button} ${styles.buttonPrimary}`}>
-              Guardar proyecto
+            <button type="submit" className={`${styles.button} ${styles.buttonPrimary}`} disabled={loading}>
+              {loading ? "Enviando..." : "Guardar proyecto"}
             </button>
             <button
               type="button"
               className={`${styles.button} ${styles.buttonGhost}`}
-              onClick={() => setValue("project", EXAMPLE_PROJECT)}
+              onClick={() => {
+                setValue("project", EXAMPLE_PROJECT, { shouldDirty: true, shouldValidate: true });
+                alert("Ejemplo cargado");
+              }}
+              disabled={loading}
             >
               Rellenar ejemplo
             </button>
