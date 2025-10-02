@@ -7,12 +7,13 @@ import {
   setCaseVariable,
 } from "@/lib/bonita";
 import { createProject, updateProjectBonitaCaseId, updateProjectStatus } from "@/lib/projectService";
+import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
 
 const PROJECT_PROCESS_DISPLAY_NAME = "ONG Originante y red de ongs"; // id 5571391406350378522
                     //mejor nombre = "Creacion de proyecto y colaboracion de ONGs
 
-function computeTotals(project) { // esto parece overkill no lo chequee
+function computeTotals(project) { 
   const stages = Array.isArray(project?.stages) ? project.stages : [];
   return stages.reduce((acc, stage) => acc + (stage?.requests?.length ?? 0), 0);
 }
@@ -30,6 +31,23 @@ export async function POST(request) {
 
   if (!projectData) {
     return NextResponse.json({ error: "Missing project payload" }, { status: 400 });
+  }
+
+  const cookieStore = await cookies();
+
+  try{
+  const sid = cookieStore.get("sid")?.value;
+  if (!sid) 
+    throw new Error("Debes iniciar sesión");
+
+  const sess = await store.get(sid);
+
+  if (!sess) throw new Error("La sesión ha expirado, por favor inicia sesión nuevamente");
+  } catch(err){
+    return NextResponse.json({ 
+      error: err.message,
+      projectSaved: false 
+    }, { status: err.status ?? 500 });
   }
 
   let savedProject;
