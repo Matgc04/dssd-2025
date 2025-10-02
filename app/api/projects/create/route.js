@@ -6,9 +6,11 @@ import {
   completeActivity,
   setCaseVariable,
 } from "@/lib/bonita";
+import { createProject, updateProjectBonitaCaseId, updateProjectStatus } from "@/lib/projectService";
 import { randomUUID } from "node:crypto";
 
-const PROJECT_PROCESS_DISPLAY_NAME = "Creacion de proyecto y colaboracion de ONGs"; // id 5571391406350378522
+const PROJECT_PROCESS_DISPLAY_NAME = "ONG Originante y red de ongs"; // id 5571391406350378522
+                    //mejor nombre = "Creacion de proyecto y colaboracion de ONGs
 
 function computeTotals(project) { // esto parece overkill no lo chequee
   const stages = Array.isArray(project?.stages) ? project.stages : [];
@@ -30,35 +32,56 @@ export async function POST(request) {
     return NextResponse.json({ error: "Missing project payload" }, { status: 400 });
   }
 
-  const projectId = contractInput?.id ?? randomUUID();
-  const pedidosTotales = computeTotals(projectData);
-  const pedidosActuales = 0;
-
-  const contract = {
-    ...contractInput,
-    project: projectData,
-    id: projectId,
-    pedidosActuales,
-    pedidosTotales,
-  };
+  let savedProject;
 
   try {
+    console.log("Guardando proyecto en la base de datos...");
+    savedProject = await createProject(payload, { 
+      processStatus: 'DRAFT' 
+    });
+    console.log("Proyecto guardado exitosamente con ID:", savedProject.id);
+
+    const projectId = savedProject.id; //ID generado por Prisma
+    const pedidosTotales = computeTotals(projectData);
+    const pedidosActuales = 0;
+
+    const contract = {
+      ...contractInput,
+      project: projectData,
+      id: projectId,
+      pedidosActuales,
+      pedidosTotales,
+    };
+
+    console.log("Iniciando proceso en Bonita...");
     const [process] = await fetchProcessByDisplayName(PROJECT_PROCESS_DISPLAY_NAME, {
       activationState: "ENABLED",
     });
 
     if (!process) {
-      return NextResponse.json({ error: "Proceso de Bonita no encontrado" }, { status: 404 });
+      await updateProjectStatus(savedProject.id, 'ERROR_BONITA_PROCESS_NOT_FOUND');
+      return NextResponse.json({ 
+        error: "Proceso de Bonita no encontrado",
+        projectId: savedProject.id,
+        projectSaved: true 
+      }, { status: 404 });
     }
 
     const casePayload = await instantiateProcess(process.id, contract);
-
     const caseId = casePayload?.caseId || casePayload?.id || casePayload?.case_id;
+    
     if (!caseId) {
-      return NextResponse.json({ error: "No se pudo obtener el caseId del proceso instanciado" }, { status: 500 });
+      await updateProjectStatus(savedProject.id, 'ERROR_BONITA_CASE_CREATION');
+      return NextResponse.json({ 
+        error: "No se pudo obtener el caseId del proceso instanciado",
+        projectId: savedProject.id,
+        projectSaved: true 
+      }, { status: 500 });
     }
 
-    // Setear variables de caso conocidas (con sus tipos explicitos) 
+    await updateProjectBonitaCaseId(savedProject.id, caseId);
+    console.log("Proyecto actualizado con Bonita Case ID:", caseId);
+
     try {
       await setCaseVariable(caseId, "id", projectId, { type: "java.lang.String" });
       await setCaseVariable(caseId, "pedidosActuales", pedidosActuales, {
@@ -73,25 +96,47 @@ export async function POST(request) {
       console.error(`Error setting case variable for case ${caseId}:`, err);
     }
 
-    // Intentar completar la primera tarea automática si existe
-    const tasks = await searchActivityByCaseId(caseId, { state: "ready", page: 0, count: 10 });
-    if (tasks.length > 0) {
-      try {
+    try {
+      const tasks = await searchActivityByCaseId(caseId, { state: "ready", page: 0, count: 10 });
+      if (tasks.length > 0) {
         await completeActivity(tasks[0].id, contract);
-      } catch (err) {
-        console.error(`Error completing task ${tasks[0].id} for case ${caseId}:`, err);
+        await updateProjectStatus(savedProject.id, 'RUNNING');
       }
+    } catch (err) {
+      console.error(`Error completing first task for case ${caseId}:`, err);
+      await updateProjectStatus(savedProject.id, 'ERROR_BONITA_TASK_COMPLETION');
     }
 
     return NextResponse.json({
       ok: true,
+      projectId: savedProject.id,
       processId: process.id,
       processName: process.name,
       casePayload,
       contract,
+      projectSaved: true
     });
+
   } catch (err) {
     console.error("Error en /api/projects/create:", err);
-    return NextResponse.json({ error: err.message }, { status: err.status ?? 500 });
+    
+    if (savedProject) {
+      try {
+        await updateProjectStatus(savedProject.id, 'ERROR');
+      } catch (updateErr) {
+        console.error("Error updating project status:", updateErr);
+      }
+      
+      return NextResponse.json({ 
+        error: err.message,
+        projectId: savedProject.id,
+        projectSaved: true 
+      }, { status: err.status ?? 500 });
+    }
+    
+    return NextResponse.json({ 
+      error: err.message,
+      projectSaved: false 
+    }, { status: err.status ?? 500 });
   }
 }

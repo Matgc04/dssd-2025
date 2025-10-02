@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo principal del proyecto
+model Project {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(120)
+  description     String   @db.VarChar(2000)
+  originCountry   String   @db.VarChar(2)
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  createdByOrgId  String   @db.VarChar(255)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  stages          Stage[]
+  bonitaCaseId    String?  @unique @db.VarChar(255)
+  processStatus   String?  @default("DRAFT") @db.VarChar(50)
+  @@map("projects")
+}
+
+// Modelo para las etapas del proyecto
+model Stage {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(1000)
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requests    Request[]
+  
+  @@map("stages")
+}
+
+// Enumeración para tipos de pedidos
+enum RequestType {
+  MONETARIO     @map("economic")
+  MATERIALES    @map("materials")
+  MANO_DE_OBRA  @map("labor")
+  OTRO          @map("other")
+}
+
+// Modelo para los pedidos de cada etapa
+model Request {
+  id          String      @id @default(cuid())
+  type        RequestType
+  description String      @db.VarChar(300)
+  amount      Decimal?    @db.Decimal(15, 2)
+  currency    String?     @db.VarChar(3) // ISO-4217
+  quantity    Decimal?    @db.Decimal(15, 3)
+  unit        String?     @db.VarChar(50)
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  stageId     String
+  stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  
+  @@map("requests")
+}
+
