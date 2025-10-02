@@ -2,6 +2,7 @@ import "./globals.css";
 import NavBar from "@/components/NavBar";
 import { cookies } from "next/headers";
 import { store } from "@/lib/store";
+import { Toaster } from "react-hot-toast";
 
 export const metadata = {
   title: "Project planning",
@@ -19,6 +20,7 @@ export default async function RootLayout({ children }) {
       <body>
         <NavBar isAuthenticated={isAuthenticated} />
         <main className="app-main">{children}</main>
+        <Toaster position="top-center" />
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function LoginPage() {
 
     if (!username.trim() || !password.trim()) {
       setError("El usuario y la contraseña son obligatorios.");
+      toast.error("Completa usuario y contraseña para continuar.");
       return;
     }
 
@@ -39,11 +41,14 @@ export default function LoginPage() {
         throw new Error(json?.error || "El inicio de sesión falló, intenta de nuevo.");
       }
 
+      toast.success(`¡Bienvenido/a ${username}!`);
       router.push("/");
       router.refresh();
     } catch (err) {
+      const message = err.message || "Login falló";
       console.error("Login falló", err);
-      setError(err.message || "Login falló");
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
