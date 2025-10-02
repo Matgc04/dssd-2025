@@ -8,6 +8,7 @@ import {
 } from "@/lib/bonita";
 import { createProject, updateProjectBonitaCaseId, updateProjectStatus } from "@/lib/projectService";
 import { cookies } from "next/headers";
+import { store } from "@/lib/store";
 import { randomUUID } from "node:crypto";
 
 const PROJECT_PROCESS_DISPLAY_NAME = "ONG Originante y red de ongs"; // id 5571391406350378522
@@ -42,7 +43,9 @@ export async function POST(request) {
 
   const sess = await store.get(sid);
 
-  if (!sess) throw new Error("La sesión ha expirado, por favor inicia sesión nuevamente");
+  if (!sess) 
+    throw new Error("La sesión ha expirado, por favor inicia sesión nuevamente");
+
   } catch(err){
     return NextResponse.json({ 
       error: err.message,
