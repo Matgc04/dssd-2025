@@ -8,6 +8,7 @@ import { EXAMPLE_PROJECT } from "@/lib/examples";
 import ProjectFields from "@/components/projects/ProjectFields";
 import Stages from "@/components/projects/Stages";
 import styles from "@/components/projects/FormStyles.module.css";
+import { toast } from "react-hot-toast";
 
 const PROCESS_DISPLAY_NAME = "Creacion de proyecto y colaboracion de ONGs";
 
@@ -53,28 +54,34 @@ export default function NewProjectPage() {
         },
       };
 
-      const res = await fetch("/api/projects/create", {
+      const request = fetch("/api/projects/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+      }).then(async (res) => {
+        const json = await res.json().catch(() => null);
+        console.log("Create response status:", res.status, "body:", json);
+
+        if (!res.ok) {
+          const message = json?.error || `Request failed with status ${res.status}`;
+          throw new Error(message);
+        }
+
+        return json;
       });
 
-      const json = await res.json().catch(() => null);
-      console.log("Create response status:", res.status, "body:", json);
-
-      if (!res.ok) {
-        const message = json?.error || `Request failed with status ${res.status}`;
-        alert(message);
-      } else {
-        const caseId = json?.casePayload?.caseId || json?.casePayload?.id || json?.casePayload?.case_id;
-        const successMessage = caseId
-          ? `Proyecto enviado. Bonita Case ID: ${caseId}`
-          : "Proyecto guardado correctamente";
-        alert(successMessage);
-      }
+      await toast.promise(request, {
+        loading: "Enviando proyecto...",
+        success: (data) => {
+          const caseId = data?.casePayload?.caseId || data?.casePayload?.id || data?.casePayload?.case_id;
+          return caseId
+            ? `Proyecto enviado. Bonita Case ID: ${caseId}`
+            : "Proyecto guardado correctamente";
+        },
+        error: (err) => err.message || "Error al guardar proyecto",
+      });
     } catch (err) {
       console.error("Error creando proyecto", err);
-      alert("Error al guardar proyecto");
     } finally {
       setLoading(false);
     }
@@ -103,7 +110,7 @@ export default function NewProjectPage() {
               className={`${styles.button} ${styles.buttonGhost}`}
               onClick={() => {
                 setValue("project", EXAMPLE_PROJECT, { shouldDirty: true, shouldValidate: true });
-                alert("Ejemplo cargado");
+                toast.success("Ejemplo cargado");
               }}
               disabled={loading}
             >
