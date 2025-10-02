@@ -14,8 +14,6 @@ Sistema web desarrollado con Next.js para la gestión de proyectos de ONGs, con 
 
 - Node.js 18+ 
 - Docker (para PostgreSQL)
-- Git
-
 ## 🛠️ Instalación y Configuración
 
 ### 1. Clonar el repositorio
@@ -83,25 +81,6 @@ npm run dev
 # El proyecto estará disponible en http://localhost:3000
 ```
 
-## 🔧 Scripts disponibles
-
-```bash
-# Desarrollo
-npm run dev          # Inicia el servidor de desarrollo
-
-# Construcción
-npm run build        # Construye la aplicación para producción
-npm run start        # Inicia la aplicación en modo producción
-
-# Base de datos
-npm run db:generate  # Genera el cliente de Prisma
-npm run db:migrate   # Ejecuta migraciones de base de datos
-npm run db:studio    # Abre Prisma Studio (GUI para ver datos)
-
-# Calidad de código
-npm run lint         # Ejecuta ESLint
-```
-
 ## 🗄️ Gestión de base de datos
 
 ### Ver datos con Prisma Studio
@@ -111,25 +90,6 @@ npm run db:studio
 ```
 
 Esto abrirá una interfaz gráfica en `http://localhost:5555` donde puedes ver y editar los datos de la base de datos.
-
-### Comandos útiles de Docker
-
-```bash
-# Ver contenedores ejecutándose
-docker ps
-
-# Detener el contenedor de PostgreSQL
-docker stop postgres-dev
-
-# Iniciar el contenedor de PostgreSQL
-docker start postgres-dev
-
-# Ver registros del contenedor
-docker logs postgres-dev
-
-# Conectarse directamente a PostgreSQL
-docker exec -it postgres-dev psql -U postgres -d dssd
-```
 
 ## 📊 Estructura del proyecto
 
@@ -156,38 +116,6 @@ dssd-2025/
 ## 🔌 Integración con Bonita
 
 El sistema se integra con Bonita BPM para la gestión de procesos. Las configuraciones de Bonita se encuentran en `lib/bonita.js`.
-
-**Nota**: La integración con Bonita es opcional. El sistema puede funcionar guardando solo los proyectos en la base de datos sin procesar workflows.
-
-## 🐛 Solución de problemas
-
-### Error de conexión a la base de datos
-
-1. Verifica que Docker esté ejecutándose: `docker ps`
-2. Verifica que el puerto 5432 no esté ocupado
-3. Revisa la URL de conexión en `.env`
-
-### Error al generar cliente de Prisma
-
-1. Cierra el servidor de desarrollo: `Ctrl+C`
-2. Ejecuta: `npx prisma generate`
-3. Vuelve a iniciar: `npm run dev`
-
-### Puerto 3000 ocupado
-
-Si el puerto 3000 está ocupado, Next.js automáticamente usará el siguiente puerto disponible (3001, 3002, etc.).
-
-## 📝 Variables de entorno
-
-Ver `.env.example` para todas las variables disponibles y sus descripciones.
-
-## 🤝 Contribución
-
-1. Bifurcar el proyecto (Fork)
-2. Crear una rama para tu funcionalidad (`git checkout -b funcionalidad/nueva-funcionalidad`)
-3. Confirmar cambios (`git commit -am 'Agrega nueva funcionalidad'`)
-4. Subir a la rama (`git push origin funcionalidad/nueva-funcionalidad`)
-5. Abrir un Pull Request
 
 ## 📄 Licencia
 
