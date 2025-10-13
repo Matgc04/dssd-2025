@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "tercera-entrega"
+version = "0.1.0"
+description = "Api en flask con swagger"
+authors = ["Matgc <92761383+Matgc04@users.noreply.github.com.>"]
+readme = "README.md"
+packages = [{ include = "tercera-entrega" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+flasgger = "^0.9.7.1"
+flask = "^3.1.2"
+flask-jwt-extended = "^4.7.1"
+python-dotenv = "^1.1.1"
+requests = "^2.32.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

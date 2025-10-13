@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+venv.bak/
+pyvenv.cfg
+
+# Package / build artifacts
+pip-wheel-metadata/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Flask instance folder (contains config, secrets)
+instance/
+.env
+.flaskenv
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Type checker caches
+.mypy_cache/
+.dmypy.json
+
+# IDEs / editors
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Misc
+*.manifest
+*.spec
