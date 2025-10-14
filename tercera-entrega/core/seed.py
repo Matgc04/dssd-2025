@@ -42,6 +42,7 @@ def _seed_admin(repo: UserRepository) -> Tuple[User, bool]:
         password_hash=generate_password_hash("admin123"),
         email="admin@example.com",
         is_sysadmin=True,
+        is_active=True,
         role=UserRole.SIN_DEFINIR,
     )
     return admin, True
@@ -58,6 +59,7 @@ def _seed_demo_users(repo: UserRepository) -> bool:
         return False
 
     selectable_roles = [role for role in UserRole]
+    selectable_roles.sort(key=lambda r: r.value)
     for idx, role in enumerate(selectable_roles):
         username = f"demo{idx+1}"
         existing = repo.get_by_username(username)

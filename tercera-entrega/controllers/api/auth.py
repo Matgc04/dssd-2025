@@ -1,6 +1,10 @@
-import requests
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from sqlalchemy.exc import IntegrityError
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from core.module.users.model import UserRole
+from core.module.users.repository import UserRepository
 
 auth_api_bp = Blueprint("auth_api_bp", __name__, url_prefix="/auth")
 
@@ -45,10 +49,137 @@ def login():
               type: string
               example: Bad username or password
     """
-    username = request.json.get("username", None)
-    password = request.json.get("password", None)
-    if username != "walter.bates" or password != "bpm":
+    payload = request.get_json(silent=True) or {}
+    username = payload.get("username")
+    password = payload.get("password")
+    if not username or not password:
+        return jsonify({"msg": "Username and password are required"}), 400
+
+    repo = UserRepository()
+    user = repo.get_by_username(username)
+    if (
+        not user
+        or user.deleted_at is not None
+        or not user.is_active
+        or not check_password_hash(user.password_hash, password)
+    ):
         return jsonify({"msg": "Bad username or password"}), 401
 
-    access_token = create_access_token(identity=username)
-    return jsonify(access_token=access_token)
+    access_token = create_access_token(
+        identity=user.username,
+        additional_claims={"role": user.role.value},
+    )
+    return jsonify(access_token=access_token), 200
+
+
+@auth_api_bp.route("/users", methods=["POST"])
+@jwt_required()
+def create_user():
+    """
+    Create a new user (sysadmin only)
+    ---
+    tags:
+      - auth
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [username, password, email]
+          properties:
+            username:
+              type: string
+              example: new.user
+            password:
+              type: string
+              example: secret123
+            email:
+              type: string
+              example: new.user@example.com
+            role:
+              type: string
+              example: consejo directivo
+            is_sysadmin:
+              type: boolean
+              example: false
+    responses:
+      201:
+        description: User created
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            username:
+              type: string
+            email:
+              type: string
+            role:
+              type: string
+            is_sysadmin:
+              type: boolean
+      400:
+        description: Invalid payload
+      401:
+        description: Missing or invalid Authorization header
+      403:
+        description: Sysadmin privileges required
+      409:
+        description: Duplicate username or email
+    """
+    repo = UserRepository()
+    requester_username = get_jwt_identity()
+    requester = repo.get_by_username(requester_username)
+    if (
+        not requester
+        or requester.deleted_at is not None
+        or not requester.is_active
+        or not requester.is_sysadmin
+    ):
+        return jsonify({"msg": "Sysadmin privileges required"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    username = payload.get("username")
+    password = payload.get("password")
+    email = payload.get("email")
+    role_value = payload.get("role", UserRole.SIN_DEFINIR.value)
+    is_sysadmin = payload.get("is_sysadmin", False)
+
+    if not username or not password or not email:
+        return jsonify({"msg": "Username, password, and email are required"}), 400
+
+    if not isinstance(is_sysadmin, bool):
+        return jsonify({"msg": "is_sysadmin must be a boolean"}), 400
+
+    password_hash = generate_password_hash(password)
+    try:
+        user = repo.create(
+            username=username,
+            password_hash=password_hash,
+            email=email,
+            is_sysadmin=is_sysadmin,
+            role=role_value,
+        )
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    except IntegrityError:
+        repo.session.rollback()
+        return jsonify({"msg": "Username or email already exists"}), 409
+
+    return (
+        jsonify(
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role.value,
+                "is_sysadmin": user.is_sysadmin,
+            }
+        ),
+        201,
+    )

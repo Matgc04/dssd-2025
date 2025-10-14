@@ -16,13 +16,25 @@ Luego, correr:
 
  La documentación de la API va a estar en http://localhost:5000/apidocs/
 
-# Usar swagger
- Para testear el login, se puede usar el siguiente usuario:
- <br/>
-    - username: walter.bates
-    - password: bpm
+# Inicializar la base de datos
+ En development correr:
+ poetry run flask reset-db
+ poetry run flask seed-db
 
-Esto devuelve un jwt que se puede usar para las rutas protegidas.
+ Esto crea las tablas en la base de datos y el seed pone algunos usuarios de ejemplo.
+
+# Usar swagger
+ Para testear el login (luego de hacer el seed)
+ <br/>
+    - username: admin
+    - password: admin123
+  Este usuario es sysadmin y puede crear otros usuarios.
+
+    - username: demo{1,2,3,4}
+    - password: demo123
+  Usuario sin sysadmin, tiene los distintos roles.
+
+El login devuelve un jwt que se puede usar para las rutas protegidas.
 
 Para pegar el jwt en Swagger en rutas protegidas, hacer click en el boton de authorize con un candado de la derecha e ingresar:
     Bearer token_jwt
