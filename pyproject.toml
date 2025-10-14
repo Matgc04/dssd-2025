@@ -13,6 +13,7 @@ flask = "^3.1.2"
 flask-jwt-extended = "^4.7.1"
 python-dotenv = "^1.1.1"
 requests = "^2.32.5"
+flask-sqlalchemy = "^3.1.1"
 
 
 [build-system]

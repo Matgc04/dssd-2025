@@ -18,6 +18,7 @@ class Config(object):
     SECRET_KEY = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(20)
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or secrets.token_hex(20)
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL") or "sqlite:///database.db"
    
 
 
