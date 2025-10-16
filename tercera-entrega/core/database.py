@@ -65,6 +65,7 @@ def reset(app):
     # Necessary to create the tables with create_all
     # It should have the app context
     # pylint: disable=C0415,W0611
+    from .module.projects.model import Project, Stage, StageRequest
     from .module.users.model import User
 
     with app.app_context():

@@ -21,14 +21,24 @@ from core.commands import register_commands  # noqa: E402
 app = Flask(__name__)
 
 swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "DSSD TP API",
+        "version": "0.1.0",
+        "description": "API para gestionar usuarios y pedidos de ayuda de proyectos.",
+    },
+    "tags": [
+        {"name": "auth", "description": "Endpoints de autenticación y administración de usuarios."},
+        {"name": "projects", "description": "Endpoints para registrar y consultar pedidos de ayuda de proyectos."},
+    ],
     "securityDefinitions": {
         "BearerAuth": {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header",
-            "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer <access_token>'"
+            "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer <access_token>'",
         }
-    }
+    },
 }
 
 swagger = Swagger(app, template=swagger_template)
