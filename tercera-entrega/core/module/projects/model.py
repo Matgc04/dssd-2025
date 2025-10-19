@@ -89,4 +89,24 @@ class StageRequest(db.Model):
     )
 
     stage = db.relationship("Stage", back_populates="requests")
+    collaborations = db.relationship("StageRequestCollaboration", back_populates="stage_request")
 
+class StageRequestCollaboration(db.Model):
+    __tablename__ = "project_stage_request_collaborations"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    stage_request_id = db.Column(
+        db.String(36),
+        db.ForeignKey("project_stage_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    collaborator_org_id = db.Column(db.String(255), nullable=False)
+    committed_amount = db.Column(db.Numeric(15, 2), nullable=True)
+    committed_quantity = db.Column(db.Numeric(15, 3), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=func.now())
+    updated_at = db.Column(
+        db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    stage_request = db.relationship("StageRequest", back_populates="collaborations")
