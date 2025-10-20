@@ -1,6 +1,5 @@
 from core import database
 
-
 def register_commands(app):
     """
     Register custom CLI commands for the Flask application.

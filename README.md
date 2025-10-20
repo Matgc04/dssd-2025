@@ -17,11 +17,25 @@ Luego, correr:
  La documentación de la API va a estar en http://localhost:5000/apidocs/
 
 # Inicializar la base de datos
- En development correr:
- poetry run flask reset-db
- poetry run flask seed-db
+En development correr:
 
- Esto crea las tablas en la base de datos y el seed pone algunos usuarios de ejemplo.
+**IMPORTANTE:** Antes de usar los comandos de flask, asegurate de setear la variable de entorno `FLASK_APP` para que Flask CLI encuentre la app:
+
+En PowerShell (Windows):
+```powershell
+$env:FLASK_APP = "main:app"
+poetry run flask reset-db
+poetry run flask seed-db
+```
+
+En bash (Linux/macOS):
+```bash
+export FLASK_APP=main:app
+poetry run flask reset-db
+poetry run flask seed-db
+```
+
+Esto crea las tablas en la base de datos y el seed pone algunos usuarios de ejemplo.
 
 # Usar swagger
  Para testear el login (luego de hacer el seed)

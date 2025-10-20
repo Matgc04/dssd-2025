@@ -72,16 +72,17 @@ def login():
     return jsonify(access_token=access_token), 200
 
 
+from flask_jwt_extended import decode_token
+
 @auth_api_bp.route("/users", methods=["POST"])
-@jwt_required()
+@auth_api_bp.route("/users", methods=["POST"])
+@jwt_required(optional=True)
 def create_user():
     """
     Create a new user (sysadmin only)
     ---
     tags:
       - auth
-    security:
-      - BearerAuth: []
     consumes:
       - application/json
     parameters:
@@ -101,12 +102,6 @@ def create_user():
             email:
               type: string
               example: new.user@example.com
-            role:
-              type: string
-              example: consejo directivo
-            is_sysadmin:
-              type: boolean
-              example: false
     responses:
       201:
         description: User created
@@ -133,28 +128,32 @@ def create_user():
         description: Duplicate username or email
     """
     repo = UserRepository()
-    requester_username = get_jwt_identity()
-    requester = repo.get_by_username(requester_username)
-    if (
-        not requester
-        or requester.deleted_at is not None
-        or not requester.is_active
-        or not requester.is_sysadmin
-    ):
-        return jsonify({"msg": "Sysadmin privileges required"}), 403
-
     payload = request.get_json(silent=True) or {}
     username = payload.get("username")
     password = payload.get("password")
     email = payload.get("email")
-    role_value = payload.get("role", UserRole.SIN_DEFINIR.value)
-    is_sysadmin = payload.get("is_sysadmin", False)
+    role = payload.get("role", UserRole.SIN_DEFINIR.value)
 
     if not username or not password or not email:
         return jsonify({"msg": "Username, password, and email are required"}), 400
 
-    if not isinstance(is_sysadmin, bool):
-        return jsonify({"msg": "is_sysadmin must be a boolean"}), 400
+    # If no users exist, allow creation and set is_sysadmin True
+    if not repo.list():
+        is_sysadmin = True
+    else:
+        # Require sysadmin JWT in header
+        requester_username = get_jwt_identity()
+        requester = repo.get_by_username(requester_username)
+        if (
+            not requester
+            or requester.deleted_at is not None
+            or not requester.is_active
+            or not requester.is_sysadmin
+        ):
+            return jsonify({"msg": "Missing or invalid Authorization header"}), 401
+        if(not requester.is_sysadmin):
+            return jsonify({"msg": "Sysadmin privileges required"}), 403
+        is_sysadmin = False
 
     password_hash = generate_password_hash(password)
     try:
@@ -163,7 +162,7 @@ def create_user():
             password_hash=password_hash,
             email=email,
             is_sysadmin=is_sysadmin,
-            role=role_value,
+            role=role,
         )
     except ValueError as exc:
         return jsonify({"msg": str(exc)}), 400
