@@ -20,6 +20,8 @@ from core.commands import register_commands  # noqa: E402
 
 app = Flask(__name__)
 
+register_commands(app)
+
 swagger_template = {
     "swagger": "2.0",
     "info": {
@@ -48,7 +50,6 @@ jwt = JWTManager(app)
 db.init_app(app)
 
 app.register_blueprint(api_bp)
-register_commands(app)
 
 
 if __name__ == "__main__":

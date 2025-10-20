@@ -9,9 +9,8 @@ from core.database import db
 
 
 class UserRole(str, Enum):
-    ONG_ORIGANTE = "ong origante"
-    ONG_COLABORADORA = "ong colaboradora"
-    CONSSEJO_DIRECTIVO = "consejo directivo"
+    ONG = "ong"
+    CONSEJO_DIRECTIVO = "consejo directivo"
     SIN_DEFINIR = "sin definir"
 
 

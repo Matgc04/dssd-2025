@@ -14,7 +14,7 @@ def login():
     User login
     ---
     tags:
-      - auth
+      - Usuarios
     consumes:
       - application/json
     parameters:
@@ -72,7 +72,6 @@ def login():
     return jsonify(access_token=access_token), 200
 
 
-from flask_jwt_extended import decode_token
 
 @auth_api_bp.route("/users", methods=["POST"])
 @auth_api_bp.route("/users", methods=["POST"])
@@ -82,7 +81,7 @@ def create_user():
     Create a new user (sysadmin only)
     ---
     tags:
-      - auth
+      - Usuarios
     consumes:
       - application/json
     parameters:

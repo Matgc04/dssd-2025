@@ -1,11 +1,10 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, decode_token
 
 from core.module.projects.repository import ProjectRepository
 from core.module.users.model import UserRole
 
 projects_api_bp = Blueprint("projects_api_bp", __name__, url_prefix="/projects")
-
 
 @projects_api_bp.route("/registrarPedidoAyuda", methods=["POST"])
 @jwt_required()
@@ -14,9 +13,7 @@ def registrarPedidoAyuda():
     Registrar pedido de ayuda
     ---
     tags:
-      - projects
-    security:
-      - BearerAuth: []
+      - Proyectos ONGs
     consumes:
       - application/json
     parameters:
@@ -25,14 +22,14 @@ def registrarPedidoAyuda():
         required: true
         schema:
           type: object
-          required: [projectId, orgId, stages]
+          required: [projectId, jwt, stages]
           properties:
             projectId:
               type: string
               description: Identificador del proyecto en la nube.
-            orgId:
+            jwt:
               type: string
-              description: Identificador de la organización que crea el pedido.
+              description: JWT token requerido en el body.
             stages:
               type: array
               description: Lista de etapas que requieren ayuda.
@@ -97,6 +94,14 @@ def registrarPedidoAyuda():
               type: array
               items:
                 type: object
+      401:
+        description: Token JWT inválido o faltante
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: Token JWT inválido o faltante
       403:
         description: El usuario no posee el rol autorizado para registrar pedidos.
         schema:
@@ -113,15 +118,20 @@ def registrarPedidoAyuda():
             msg:
               type: string
     """
-    claims = get_jwt()
-    role = claims.get("role")
-    if role != UserRole.ONG_COLABORADORA.value:
-        return jsonify({"msg": "Rol ONG colaboradora requerido"}), 403
-
     payload = request.get_json(silent=True) or {}
+    token = payload.get("jwt")
+    if not token:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    org_id = claims.get("identity")
+    role = claims.get("role")
+    if role != UserRole.ONG.value:
+        return jsonify({"msg": "Rol ONG requerido"}), 403
 
     project_id = payload.get("projectId") or payload.get("project_id")
-    org_id = payload.get("orgId") or payload.get("org_id")
     stages_payload = payload.get("stages")
 
     if not project_id or not org_id or stages_payload is None:
@@ -186,6 +196,299 @@ def registrarPedidoAyuda():
     return jsonify(response_body), status_code
 
 
+@projects_api_bp.route("/etapas_necesitan_colaboracion", methods=["get"])
+@jwt_required(optional=True)
+def que_etapas_necesitan_colaboracion():
+      """
+      Obtener las etapas de un proyecto que necesitan colaboración
+      ---
+      tags:
+        - Proyectos ONGs
+      parameters:
+        - in: jwt
+          name: jwt
+          schema:
+            type: string
+          description: JWT token opcional — puede enviarse en el Authorization header.
+        - in: body
+          name: body
+          required: false
+          schema:
+            type: object
+            properties:
+      responses:
+        200:
+          description: Lista de etapas que requieren colaboración
+          schema:
+            type: object
+            properties:
+              projectId:
+                type: integer
+              title:
+                type: string
+              stages:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    stageId:
+                      type: string
+                    name:
+                      type: string
+                    needsHelp:
+                      type: boolean
+        400:
+          description: Parámetros inválidos
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+        404:
+          description: Proyecto no encontrado
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+      """
+      try:
+        project_id = int(project_id)
+      except ValueError:
+        return jsonify({"error": "Parámetros inválidos o faltantes en la solicitud."}), 400
+      repo = ProjectRepository()
+      project = repo.get_project_by_id(project_id)
+      if not project:
+          return jsonify({"error": "Proyecto no encontrado."}), 404
+      stages = [{
+          "stageId": stage.id,
+          "name": stage.name,
+          "needsHelp": stage.needs_help,
+      } for stage in project.stages if stage.needs_help]
+      return jsonify({"stages": stages}), 200
+
+@projects_api_bp.route("/quiero_colaborar/", methods=["POST"])
+def quiero_colaborar():
+    """
+    Expresar intención de colaborar en un pedido de ayuda
+    ---
+    tags:
+      - Proyectos ONGs
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [jwt, project_id, stage_id, help_request_id, commited_amount, commited_quantity]
+          properties:
+            jwt:
+              type: string
+              description: JWT token requerido en el body.
+            project_id:
+              type: string
+            stage_id:
+              type: string
+            help_request_id:
+              type: string
+            commited_amount:
+              type: number
+            commited_quantity:
+              type: number
+    responses:
+      200:
+        description: Intención de colaboración registrada
+      401:
+        description: Token JWT inválido o faltante
+      403:
+        description: El usuario no posee el rol autorizado para colaborar
+    """
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("jwt")
+    if not token:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    role = claims.get("role")
+    if role != UserRole.ONG.value:
+        return jsonify({"msg": "Rol ONG requerido"}), 403
+
+    project_id = payload.get("project_id")
+    stage_id = payload.get("stage_id")
+    help_request_id = payload.get("help_request_id")
+    commited_amount = payload.get("commited_amount")
+    commited_quantity = payload.get("commited_quantity")
+    if not all([project_id, stage_id, help_request_id, commited_amount, commited_quantity]):
+        return jsonify({"msg": "Faltan datos obligatorios para colaborar"}), 400
+
+    # Implementar la lógica para registrar la colaboración
+    return jsonify({"msg": "Intención de colaboración registrada"}), 200
+
+@projects_api_bp.route("/termino_colaboracion", methods=["POST"])
+def termino_colaboracion():
+    """
+    Completar una colaboración en un pedido de ayuda
+    ---
+    tags:
+      - Proyectos ONGs
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [jwt, collaboration_id]
+          properties:
+            jwt:
+              type: string
+              description: JWT token requerido en el body.
+            collaboration_id:
+              type: string
+    responses:
+      200:
+        description: Colaboración completada
+      401:
+        description: Token JWT inválido o faltante
+      403:
+        description: El usuario no posee el rol autorizado para completar colaboración
+    """
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("jwt")
+    if not token:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    role = claims.get("role")
+    if role != UserRole.ONG.value:
+        return jsonify({"msg": "Rol ONG requerido"}), 403
+
+    collaboration_id = payload.get("collaboration_id")
+    if not collaboration_id:
+        return jsonify({"msg": "Falta collaboration_id"}), 400
+
+    # Implementar la lógica para completar la colaboración
+    return jsonify({"msg": "Colaboración completada"}), 200
+
+@projects_api_bp.route("/poner_observacion", methods=["POST"])
+def poner_observacion():
+    """
+    Poner una observación en un proyecto
+    ---
+    tags:
+      - Proyectos Consejo Directivo
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [jwt, project_id, observacion]
+          properties:
+            jwt:
+              type: string
+              description: JWT token requerido en el body.
+            project_id:
+              type: integer
+              description: Identificador del proyecto
+              example: 1
+            observacion:
+              type: string
+              description: Texto de la observación
+              example: "Necesita revisar documentación"
+    responses:
+      201:
+        description: Observación creada exitosamente
+      401:
+        description: No autorizado - Token inválido o faltante
+      403:
+        description: El usuario no posee el rol autorizado para poner observación
+    """
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("jwt")
+    if not token:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    role = claims.get("role")
+    if role != UserRole.CONSEJO_DIRECTIVO.value:
+        return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
+
+    project_id = payload.get("project_id")
+    observacion = payload.get("observacion")
+    if not project_id or not observacion:
+        return jsonify({"msg": "Faltan datos obligatorios"}), 400
+
+    # Implementar la lógica para registrar la observación
+    return jsonify({"msg": "Observación creada exitosamente"}), 201
+
+@projects_api_bp.route("/observacion_terminada", methods=["POST"])
+def observacion_terminada():
+    """
+    Marcar una observación como terminada
+    ---
+    tags:
+      - Proyectos Consejo Directivo
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [jwt, observacion_id, project_id]
+          properties:
+            jwt:
+              type: string
+              description: JWT token requerido en el body.
+            observacion_id:
+              type: integer
+              description: ID de la observación
+              example: 1
+            project_id:
+              type: integer
+              description: Identificador del proyecto
+              example: 1
+    responses:
+      200:
+        description: Observación marcada como terminada
+      401:
+        description: No autorizado - Token inválido o faltante
+      403:
+        description: El usuario no posee el rol autorizado para terminar observación
+    """
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("jwt")
+    if not token:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    try:
+        claims = decode_token(token)
+    except Exception:
+        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    role = claims.get("role")
+    if role != UserRole.CONSEJO_DIRECTIVO.value:
+        return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
+
+    observacion_id = payload.get("observacion_id")
+    project_id = payload.get("project_id")
+    if not observacion_id or not project_id:
+        return jsonify({"msg": "Faltan datos obligatorios"}), 400
+
+    # Implementar la lógica para marcar la observación como terminada
+    return jsonify({"msg": "Observación marcada como terminada"}), 200
+
 def _serialize_project(project):
     return {
         "projectId": project.id,
@@ -230,3 +533,9 @@ def _serialize_request(request):
         "createdAt": request.created_at.isoformat() if request.created_at else None,
         "updatedAt": request.updated_at.isoformat() if request.updated_at else None,
     }
+
+# /QuieroColaborar 
+# /TerminoColaboracion
+# Ver el tema de las observaciones a ver si podes meter un endpoint
+# /PonerObservacion supervisor
+# /ObservacionTerminada la ong originante
