@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, decode_token
 
+from core.module.projects.model import StageRequestCollaboration
 from core.module.projects.repository import ProjectRepository
 from core.module.users.model import UserRole
 
@@ -195,7 +196,7 @@ def registrarPedidoAyuda():
     return jsonify(response_body), status_code
 
 
-@projects_api_bp.route("/etapas_necesitan_colaboracion", methods=["get"])
+@projects_api_bp.route("/etapasNecesitanColaboracion", methods=["get"])
 @jwt_required()
 def queEtapasNecesitanColaboracion():
       """
@@ -263,13 +264,16 @@ def queEtapasNecesitanColaboracion():
       
       return jsonify({"stages": stages}), 200
 
-@projects_api_bp.route("/quiero_colaborar/", methods=["POST"])
+@projects_api_bp.route("/quieroColaborar/", methods=["POST"])
+@jwt_required()
 def quiero_colaborar():
     """
     Expresar intención de colaborar en un pedido de ayuda
     ---
     tags:
       - Proyectos ONGs
+    security:
+      - BearerAuth: []
     consumes:
       - application/json
     parameters:
@@ -278,11 +282,10 @@ def quiero_colaborar():
         required: true
         schema:
           type: object
-          required: [jwt, project_id, stage_id, help_request_id, commited_amount, commited_quantity]
+          required: [org_id, project_id, stage_id, help_request_id, commited_amount, commited_quantity]
           properties:
-            jwt:
+            org_id:
               type: string
-              description: JWT token requerido en el body.
             project_id:
               type: string
             stage_id:
@@ -300,29 +303,107 @@ def quiero_colaborar():
         description: Token JWT inválido o faltante
       403:
         description: El usuario no posee el rol autorizado para colaborar
+      404:
+        description: Etapa o pedido de ayuda no encontrado
+      409:
+        description: Pedido de ayuda ya completado o en proceso de atención
     """
     payload = request.get_json(silent=True) or {}
-    token = payload.get("jwt")
-    if not token:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
-    try:
-        claims = decode_token(token)
-    except Exception:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    claims = get_jwt()
+
     role = claims.get("role")
     if role != UserRole.ONG.value:
         return jsonify({"msg": "Rol ONG requerido"}), 403
 
-    project_id = payload.get("project_id")
-    stage_id = payload.get("stage_id")
-    help_request_id = payload.get("help_request_id")
+    collaborator_org_id = (
+      payload.get("org_id") or payload.get("orgId")
+    )
+
+    if not collaborator_org_id:
+        return jsonify({"msg": "No se pudo determinar la organización colaboradora"}), 400
+
+    project_id = str(payload.get("project_id") or payload.get("projectId"))
+    stage_id = str(payload.get("stage_id") or payload.get("stageId"))
+    help_request_id = str(payload.get("help_request_id") or payload.get("helpRequestId"))
+
     commited_amount = payload.get("commited_amount")
     commited_quantity = payload.get("commited_quantity")
-    if not all([project_id, stage_id, help_request_id, commited_amount, commited_quantity]):
-        return jsonify({"msg": "Faltan datos obligatorios para colaborar"}), 400
 
-    # Implementar la lógica para registrar la colaboración
-    return jsonify({"msg": "Intención de colaboración registrada"}), 200
+    field_labels = {
+        "project_id": project_id,
+        "stage_id": stage_id,
+        "help_request_id": help_request_id,
+        "commited_amount": commited_amount,
+        "commited_quantity": commited_quantity,
+    }
+    missing_fields = [name for name, value in field_labels.items() if value in (None, "")]
+    if missing_fields:
+        return (
+            jsonify(
+                {
+                    "msg": f"Faltan datos obligatorios: {', '.join(sorted(missing_fields))}"
+                }
+            ),
+            400,
+        )
+
+    repo = ProjectRepository()
+
+    stage = repo.get_stage(stage_id, project_id=project_id)
+    if not stage:
+        return jsonify({"msg": "Etapa no encontrada"}), 404
+    stage_request = repo.get_request(help_request_id)
+    if (
+        not stage_request
+        or stage_request.stage_id != stage_id
+        or stage_request.project_id != project_id
+    ):
+        return jsonify({"msg": "Pedido de ayuda no encontrado para la etapa indicada"}), 404
+    if stage_request.is_complete:
+        return jsonify({"msg": "El pedido de ayuda ya fue completado"}), 409
+    if stage_request.is_being_completed:
+        return jsonify({"msg": "El pedido de ayuda ya está siendo atendido"}), 409
+
+    committed_amount_decimal = (
+        repo._coerce_decimal(commited_amount, scale=2)
+        if commited_amount is not None
+        else None
+    )
+    committed_quantity_decimal = (
+        repo._coerce_decimal(commited_quantity, scale=3)
+        if commited_quantity is not None
+        else None
+    )
+
+    collaboration = StageRequestCollaboration(
+        stage_request_id=stage_request.id,
+        collaborator_org_id=str(collaborator_org_id),
+        committed_amount=committed_amount_decimal,
+        committed_quantity=committed_quantity_decimal,
+    )
+    repo.session.add(collaboration)
+
+    stage_request.is_being_completed = True
+    repo.session.add(stage_request)
+
+    repo.session.commit()
+
+    def _decimal_to_float(value):
+        return float(value) if value is not None else None
+
+    response_payload = {
+        "msg": "Intención de colaboración registrada",
+        "collaboration": {
+            "id": collaboration.id,
+            "project_id": project_id,
+            "stage_id": stage_id,
+            "stage_request_id": stage_request.id,
+            "collaborator_org_id": collaborator_org_id,
+            "committed_amount": _decimal_to_float(collaboration.committed_amount),
+            "committed_quantity": _decimal_to_float(collaboration.committed_quantity),
+        },
+    }
+    return jsonify(response_payload), 200
 
 @projects_api_bp.route("/termino_colaboracion", methods=["POST"])
 def termino_colaboracion():

@@ -128,7 +128,8 @@ class ProjectRepository:
 
                 request_kwargs = {
                     "id": request_identifier,
-                    "stage": stage,
+                    "stage_id": stage.id,
+                    "project_id": project.id,
                     "request_type": self._coerce_request_type(request_type_value),
                     "description": request_description,
                     "amount": self._coerce_decimal(request_payload.get("amount"), scale=2),
@@ -170,8 +171,17 @@ class ProjectRepository:
         self.session.commit()
         return stage
 
-    def get_stage(self, stage_id: str) -> Optional[Stage]:
-        return self.session.get(Stage, stage_id)
+    def get_stage(self, stage_id: str, *, project_id: str) -> Optional[Stage]:
+        if not stage_id:
+            raise ValueError("stage_id is required")
+        if not project_id:
+            raise ValueError("project_id is required to retrieve a stage")
+
+        stmt = select(Stage).where(
+            Stage.id == stage_id,
+            Stage.project_id == project_id,
+        )
+        return self.session.execute(stmt).scalar_one_or_none()
 
     def list_stages(self, *, project_id: Optional[str] = None) -> Iterable[Stage]:
         stmt = select(Stage)
@@ -181,6 +191,7 @@ class ProjectRepository:
         return self.session.execute(stmt).scalars().all()
 
     def update_stage(self, stage: Stage, /, **changes) -> Stage:
+        changes.pop("project_id", None) # project_id is immutable
         return self._apply_updates(Stage, stage, changes)
 
     def delete_stage(self, stage: Stage, *, commit: bool = True) -> None:
@@ -193,6 +204,7 @@ class ProjectRepository:
         self,
         *,
         stage_id: str,
+        project_id: str,
         request_type: Union[RequestType, str],
         description: str,
         amount: Optional[Union[Decimal, float, str]] = None,
@@ -204,6 +216,7 @@ class ProjectRepository:
     ) -> StageRequest:
         request = StageRequest(
             stage_id=stage_id,
+            project_id=project_id,
             request_type=self._coerce_request_type(request_type),
             description=description,
             amount=self._coerce_decimal(amount, scale=2),
@@ -229,7 +242,7 @@ class ProjectRepository:
     ) -> Iterable[StageRequest]:
         stmt = select(StageRequest)
         if project_id:
-            stmt = stmt.join(Stage).where(Stage.project_id == project_id)
+            stmt = stmt.where(StageRequest.project_id == project_id)
         if stage_id:
             stmt = stmt.where(StageRequest.stage_id == stage_id)
         if is_complete is not None:
@@ -237,6 +250,8 @@ class ProjectRepository:
         return self.session.execute(stmt).scalars().all()
 
     def update_request(self, request: StageRequest, /, **changes) -> StageRequest:
+        changes.pop("stage_id", None)
+        changes.pop("project_id", None)
         if "request_type" in changes:
             changes["request_type"] = self._coerce_request_type(changes["request_type"])
         if "amount" in changes:

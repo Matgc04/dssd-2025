@@ -3,10 +3,10 @@ from __future__ import annotations
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import Enum as SAEnum, func
+from sqlalchemy import Enum as SAEnum, func, and_
 
 from typing import List
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, relationship, foreign
 
 from core.database import db
 
@@ -43,6 +43,7 @@ class Stage(db.Model):
     project_id = db.Column(
         db.String(36),
         db.ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
         nullable=False,
         index=True,
     )
@@ -69,11 +70,14 @@ class StageRequest(db.Model):
     __tablename__ = "project_stage_requests"
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
-    stage_id = db.Column(
-        db.String(36),
-        db.ForeignKey("project_stages.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+    stage_id = db.Column(db.String(36), nullable=False, index=True)
+    project_id = db.Column(db.String(36), nullable=False, index=True)
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ["project_id", "stage_id"],
+            ["project_stages.project_id", "project_stages.id"],
+            ondelete="CASCADE",
+        ),
     )
     request_type = db.Column(
         SAEnum(RequestType, name="project_request_type"), nullable=False
@@ -91,7 +95,15 @@ class StageRequest(db.Model):
         db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    stage = db.relationship("Stage", back_populates="requests")
+    stage = db.relationship(
+        "Stage",
+        back_populates="requests",
+        primaryjoin=lambda: and_(
+            Stage.project_id == foreign(StageRequest.project_id),
+            Stage.id == foreign(StageRequest.stage_id),
+        ),
+        foreign_keys=[project_id, stage_id],
+    )
     collaborations = db.relationship("StageRequestCollaboration", back_populates="stage_request")
 
 class StageRequestCollaboration(db.Model):
