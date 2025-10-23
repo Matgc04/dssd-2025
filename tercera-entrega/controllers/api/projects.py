@@ -405,13 +405,16 @@ def quiero_colaborar():
     }
     return jsonify(response_payload), 200
 
-@projects_api_bp.route("/termino_colaboracion", methods=["POST"])
+@projects_api_bp.route("/terminoColaboracion", methods=["POST"])
+@jwt_required()
 def termino_colaboracion():
     """
     Completar una colaboración en un pedido de ayuda
     ---
     tags:
       - Proyectos ONGs
+    security:
+      - BearerAuth: []
     consumes:
       - application/json
     parameters:
@@ -420,29 +423,27 @@ def termino_colaboracion():
         required: true
         schema:
           type: object
-          required: [jwt, collaboration_id]
+          required: [collaboration_id]
           properties:
-            jwt:
-              type: string
-              description: JWT token requerido en el body.
             collaboration_id:
               type: string
     responses:
       200:
         description: Colaboración completada
+      400:
+        description: Falta collaboration_id
       401:
         description: Token JWT inválido o faltante
       403:
         description: El usuario no posee el rol autorizado para completar colaboración
+    404:
+        description: Colaboración no encontrada
+    409:
+        description: La colaboración ya fue completada
     """
     payload = request.get_json(silent=True) or {}
-    token = payload.get("jwt")
-    if not token:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
-    try:
-        claims = decode_token(token)
-    except Exception:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    
+    claims = get_jwt()
     role = claims.get("role")
     if role != UserRole.ONG.value:
         return jsonify({"msg": "Rol ONG requerido"}), 403
@@ -451,7 +452,16 @@ def termino_colaboracion():
     if not collaboration_id:
         return jsonify({"msg": "Falta collaboration_id"}), 400
 
-    # Implementar la lógica para completar la colaboración
+    repo = ProjectRepository()
+    try:
+        repo.complete_collaboration(str(collaboration_id))
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    except LookupError as exc:
+        return jsonify({"msg": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"msg": str(exc)}), 409
+    
     return jsonify({"msg": "Colaboración completada"}), 200
 
 @projects_api_bp.route("/poner_observacion", methods=["POST"])

@@ -9,7 +9,7 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from core.database import db
-from .model import Project, RequestType, Stage, StageRequest
+from .model import Project, RequestType, Stage, StageRequest, StageRequestCollaboration
 
 
 class ProjectRepository:
@@ -266,6 +266,28 @@ class ProjectRepository:
         self.session.delete(request)
         if commit:
             self.session.commit()
+
+    def complete_collaboration(self, collaboration_id: str) -> StageRequestCollaboration:
+        if not collaboration_id:
+            raise ValueError("collaboration_id is required")
+
+        collaboration = self.session.get(StageRequestCollaboration, str(collaboration_id))
+        if collaboration is None:
+            raise LookupError("Colaboración no encontrada")
+
+        stage_request = self.session.get(StageRequest, collaboration.stage_request_id)
+        if stage_request is None:
+            raise LookupError("Pedido de ayuda asociado no encontrado")
+
+        if stage_request.is_complete:
+            raise RuntimeError("El pedido de ayuda ya fue completado")
+
+        stage_request.is_complete = True
+        stage_request.is_being_completed = False
+        self.session.add(stage_request)
+        self.session.commit()
+
+        return collaboration
 
     # -- Helpers ------------------------------------------------------------------
     def _apply_updates(self, model_cls, instance, changes):
