@@ -5,6 +5,9 @@ from uuid import uuid4
 
 from sqlalchemy import Enum as SAEnum, func
 
+from typing import List
+from sqlalchemy.orm import Mapped, relationship
+
 from core.database import db
 
 
@@ -25,7 +28,7 @@ class Project(db.Model):
         db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    stages = db.relationship(
+    stages: Mapped[List["Stage"]] = relationship(
         "Stage",
         back_populates="project",
         cascade="all, delete-orphan",
@@ -54,7 +57,7 @@ class Stage(db.Model):
     )
 
     project = db.relationship("Project", back_populates="stages")
-    requests = db.relationship(
+    requests: Mapped[List["StageRequest"]] = relationship(
         "StageRequest",
         back_populates="stage",
         cascade="all, delete-orphan",

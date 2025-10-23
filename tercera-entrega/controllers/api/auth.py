@@ -14,7 +14,7 @@ def login():
     User login
     ---
     tags:
-      - Usuarios
+      - auth
     consumes:
       - application/json
     parameters:
@@ -27,10 +27,10 @@ def login():
           properties:
             username:
               type: string
-              example: walter.bates
+              example: demo2
             password:
               type: string
-              example: bpm
+              example: demo123
     responses:
       200:
         description: JWT issued
@@ -81,7 +81,7 @@ def create_user():
     Create a new user (sysadmin only)
     ---
     tags:
-      - Usuarios
+      - auth
     consumes:
       - application/json
     parameters:

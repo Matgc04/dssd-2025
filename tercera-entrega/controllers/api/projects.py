@@ -14,6 +14,8 @@ def registrarPedidoAyuda():
     ---
     tags:
       - Proyectos ONGs
+    security:
+      - BearerAuth: []
     consumes:
       - application/json
     parameters:
@@ -22,14 +24,14 @@ def registrarPedidoAyuda():
         required: true
         schema:
           type: object
-          required: [projectId, jwt, stages]
+          required: [projectId, orgId, stages]
           properties:
             projectId:
               type: string
               description: Identificador del proyecto en la nube.
-            jwt:
+            orgId:
               type: string
-              description: JWT token requerido en el body.
+              description: Identificador de la organización que crea el pedido.
             stages:
               type: array
               description: Lista de etapas que requieren ayuda.
@@ -101,7 +103,7 @@ def registrarPedidoAyuda():
           properties:
             msg:
               type: string
-              example: Token JWT inválido o faltante
+              example: Missing authorization header
       403:
         description: El usuario no posee el rol autorizado para registrar pedidos.
         schema:
@@ -109,7 +111,7 @@ def registrarPedidoAyuda():
           properties:
             msg:
               type: string
-              example: Rol ONG colaboradora requerido
+              example: Rol ONG requerido
       400:
         description: Error de validación en la carga del pedido.
         schema:
@@ -118,20 +120,17 @@ def registrarPedidoAyuda():
             msg:
               type: string
     """
-    payload = request.get_json(silent=True) or {}
-    token = payload.get("jwt")
-    if not token:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
-    try:
-        claims = decode_token(token)
-    except Exception:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
-    org_id = claims.get("identity")
+
+    claims = get_jwt()
     role = claims.get("role")
+
     if role != UserRole.ONG.value:
         return jsonify({"msg": "Rol ONG requerido"}), 403
+    
+    payload = request.get_json(silent=True) or {}
 
     project_id = payload.get("projectId") or payload.get("project_id")
+    org_id = payload.get("orgId") or payload.get("org_id")
     stages_payload = payload.get("stages")
 
     if not project_id or not org_id or stages_payload is None:
@@ -197,22 +196,19 @@ def registrarPedidoAyuda():
 
 
 @projects_api_bp.route("/etapas_necesitan_colaboracion", methods=["get"])
-@jwt_required(optional=True)
-def que_etapas_necesitan_colaboracion():
+@jwt_required()
+def queEtapasNecesitanColaboracion():
       """
       Obtener las etapas de un proyecto que necesitan colaboración
       ---
       tags:
         - Proyectos ONGs
+      security:
+      - BearerAuth: []
       parameters:
-        - in: jwt
-          name: jwt
-          schema:
-            type: string
-          description: JWT token opcional — puede enviarse en el Authorization header.
-        - in: body
-          name: body
-          required: false
+        - in: query
+          name: projectId
+          required: true
           schema:
             type: object
             properties:
@@ -235,8 +231,6 @@ def que_etapas_necesitan_colaboracion():
                       type: string
                     name:
                       type: string
-                    needsHelp:
-                      type: boolean
         400:
           description: Parámetros inválidos
           schema:
@@ -252,19 +246,21 @@ def que_etapas_necesitan_colaboracion():
               error:
                 type: string
       """
-      try:
-        project_id = int(project_id)
-      except ValueError:
-        return jsonify({"error": "Parámetros inválidos o faltantes en la solicitud."}), 400
+      project_id = request.args.get("projectId") or request.args.get("project_id")
+      
+      if not project_id:
+          return jsonify({"error": "Falta projectId"}), 400
+      
       repo = ProjectRepository()
-      project = repo.get_project_by_id(project_id)
+      project = repo.get_project(project_id)
       if not project:
           return jsonify({"error": "Proyecto no encontrado."}), 404
+      
       stages = [{
           "stageId": stage.id,
           "name": stage.name,
-          "needsHelp": stage.needs_help,
-      } for stage in project.stages if stage.needs_help]
+      } for stage in project.stages if any(not req.is_complete and not req.is_being_completed for req in stage.requests)]
+      
       return jsonify({"stages": stages}), 200
 
 @projects_api_bp.route("/quiero_colaborar/", methods=["POST"])

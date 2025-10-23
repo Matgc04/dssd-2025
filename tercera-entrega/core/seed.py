@@ -53,7 +53,6 @@ def _seed_demo_users(repo: UserRepository) -> bool:
     existing1 = repo.get_by_username("demo1")
     existing2 = repo.get_by_username("demo2")
     existing3 = repo.get_by_username("demo3")
-     # Just return one of them
     
     if existing1 or existing2 or existing3:
         return False
