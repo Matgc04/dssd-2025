@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -44,7 +45,10 @@ swagger_template = {
 }
 
 swagger = Swagger(app, template=swagger_template)
-app.config.from_object(config["development"]) # TODO: make it dynamic
+
+config_name = (os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "development").lower()
+app_config = config.get(config_name, config["development"])
+app.config.from_object(app_config)
 
 jwt = JWTManager(app)
 db.init_app(app)
@@ -53,4 +57,8 @@ app.register_blueprint(api_bp)
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 5000)),
+        debug=app.config.get("DEBUG", False),
+    )
