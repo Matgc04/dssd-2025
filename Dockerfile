@@ -13,10 +13,10 @@ RUN pip install --upgrade pip poetry
 
 COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --only main
+    && poetry install --no-interaction --no-ansi --only main --no-root
 
 COPY tercera-entrega ./tercera-entrega
 
 EXPOSE 8080
 
-CMD ["/bin/sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-8080} tercera-entrega.main:app"]
+CMD ["sh","-c","exec gunicorn --chdir tercera-entrega --bind 0.0.0.0:${PORT:-8080} main:app"]
