@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, decode_token
+from flask_jwt_extended import get_jwt, jwt_required
 
-from core.module.projects.model import StageRequestCollaboration
 from core.module.projects.repository import ProjectRepository
 from core.module.users.model import UserRole
 
@@ -464,117 +463,95 @@ def termino_colaboracion():
     
     return jsonify({"msg": "Colaboración completada"}), 200
 
-@projects_api_bp.route("/poner_observacion", methods=["POST"])
+@projects_api_bp.route("/ponerObservacion", methods=["POST"])
+@jwt_required()
 def poner_observacion():
     """
     Poner una observación en un proyecto
-    ---
-    tags:
-      - Proyectos Consejo Directivo
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          required: [jwt, project_id, observacion]
-          properties:
-            jwt:
-              type: string
-              description: JWT token requerido en el body.
-            project_id:
-              type: integer
-              description: Identificador del proyecto
-              example: 1
-            observacion:
-              type: string
-              description: Texto de la observación
-              example: "Necesita revisar documentación"
-    responses:
-      201:
-        description: Observación creada exitosamente
-      401:
-        description: No autorizado - Token inválido o faltante
-      403:
-        description: El usuario no posee el rol autorizado para poner observación
     """
     payload = request.get_json(silent=True) or {}
-    token = payload.get("jwt")
-    if not token:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
-    try:
-        claims = decode_token(token)
-    except Exception:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    claims = get_jwt()
     role = claims.get("role")
     if role != UserRole.CONSEJO_DIRECTIVO.value:
         return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
 
-    project_id = payload.get("project_id")
+    project_id_raw = payload.get("project_id") or payload.get("projectId")
     observacion = payload.get("observacion")
-    if not project_id or not observacion:
+    if isinstance(observacion, str):
+        observacion = observacion.strip()
+    if not project_id_raw or not observacion:
         return jsonify({"msg": "Faltan datos obligatorios"}), 400
 
-    # Implementar la lógica para registrar la observación
-    return jsonify({"msg": "Observación creada exitosamente"}), 201
-
-@projects_api_bp.route("/observacion_terminada", methods=["POST"])
-def observacion_terminada():
-    """
-    Marcar una observación como terminada
-    ---
-    tags:
-      - Proyectos Consejo Directivo
-    consumes:
-      - application/json
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          required: [jwt, observacion_id, project_id]
-          properties:
-            jwt:
-              type: string
-              description: JWT token requerido en el body.
-            observacion_id:
-              type: integer
-              description: ID de la observación
-              example: 1
-            project_id:
-              type: integer
-              description: Identificador del proyecto
-              example: 1
-    responses:
-      200:
-        description: Observación marcada como terminada
-      401:
-        description: No autorizado - Token inválido o faltante
-      403:
-        description: El usuario no posee el rol autorizado para terminar observación
-    """
-    payload = request.get_json(silent=True) or {}
-    token = payload.get("jwt")
-    if not token:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+    project_id = str(project_id_raw).strip()
+    if not project_id:
+        return jsonify({"msg": "project_id no puede ser vacío"}), 400
+    repo = ProjectRepository()
     try:
-        claims = decode_token(token)
-    except Exception:
-        return jsonify({"msg": "Token JWT inválido o faltante"}), 401
+        project = repo.set_project_observation(
+            project_id,
+            observaciones=observacion
+        )
+    except LookupError:
+        return jsonify({"msg": "Proyecto no encontrado"}), 404
+
+    return (
+        jsonify(
+            {
+                "msg": "Observación creada exitosamente",
+                "project": _serialize_project(project),
+            }
+        ),
+        201,
+    )
+
+@projects_api_bp.route("/observacionTerminada", methods=["POST"])
+@jwt_required()
+def observacion_terminada():
+    """Marcar una observación como terminada."""
+    payload = request.get_json(silent=True) or {}
+    
+    claims = get_jwt()
     role = claims.get("role")
     if role != UserRole.CONSEJO_DIRECTIVO.value:
         return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
 
     observacion_id = payload.get("observacion_id")
-    project_id = payload.get("project_id")
-    if not observacion_id or not project_id:
+    project_id_raw = payload.get("project_id") or payload.get("projectId")
+    if not observacion_id or not project_id_raw:
         return jsonify({"msg": "Faltan datos obligatorios"}), 400
 
-    # Implementar la lógica para marcar la observación como terminada
-    return jsonify({"msg": "Observación marcada como terminada"}), 200
+    project_id = str(project_id_raw).strip()
+    if not project_id:
+        return jsonify({"msg": "project_id no puede ser vacío"}), 400
+
+    repo = ProjectRepository()
+    project = repo.get_project(project_id)
+    if not project:
+        return jsonify({"msg": "Proyecto no encontrado"}), 404
+    if not project.observaciones:
+        return (
+            jsonify(
+                {
+                    "msg": "El proyecto no tiene observaciones registradas para marcar como terminadas"
+                }
+            ),
+            409,
+        )
+
+    #project.estado_observaciones = ObservationStatus.TERMINADA
+    repo.session.add(project)
+    repo.session.commit()
+    repo.session.refresh(project)
+
+    return (
+        jsonify(
+            {
+                "msg": "Observación marcada como terminada",
+                "project": _serialize_project(project),
+            }
+        ),
+        200,
+    )
 
 def _serialize_project(project):
     return {

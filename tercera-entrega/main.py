@@ -32,7 +32,6 @@ swagger_template = {
     },
     "tags": [
         {"name": "auth", "description": "Endpoints de autenticación y administración de usuarios."},
-        {"name": "projects", "description": "Endpoints para registrar y consultar pedidos de ayuda de proyectos."},
     ],
     "securityDefinitions": {
         "BearerAuth": {
