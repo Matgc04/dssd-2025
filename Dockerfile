@@ -17,6 +17,8 @@ RUN poetry config virtualenvs.create false \
 
 COPY tercera-entrega ./tercera-entrega
 
+RUN mkdir -p /app/tercera-entrega/instance
+
 EXPOSE 8080
 
 CMD ["sh","-c","exec gunicorn --chdir tercera-entrega --bind 0.0.0.0:${PORT:-8080} main:app"]
