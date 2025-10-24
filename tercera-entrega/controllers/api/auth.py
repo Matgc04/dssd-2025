@@ -74,14 +74,15 @@ def login():
 
 
 @auth_api_bp.route("/users", methods=["POST"])
-@auth_api_bp.route("/users", methods=["POST"])
-@jwt_required(optional=True)
+@jwt_required()
 def create_user():
     """
     Create a new user (sysadmin only)
     ---
     tags:
       - auth
+    security:
+      - BearerAuth: []
     consumes:
       - application/json
     parameters:
@@ -101,6 +102,12 @@ def create_user():
             email:
               type: string
               example: new.user@example.com
+            role:
+              type: string
+              example: ONG
+            is_sysadmin:
+              type: boolean
+              example: False
     responses:
       201:
         description: User created
@@ -126,33 +133,28 @@ def create_user():
       409:
         description: Duplicate username or email
     """
-    repo = UserRepository()
     payload = request.get_json(silent=True) or {}
     username = payload.get("username")
     password = payload.get("password")
     email = payload.get("email")
     role = payload.get("role", UserRole.SIN_DEFINIR.value)
+    is_sysadmin = bool(payload.get("is_sysadmin", False))
 
     if not username or not password or not email:
         return jsonify({"msg": "Username, password, and email are required"}), 400
+    
+      # Require sysadmin JWT in header
+    requester_username = get_jwt_identity()
 
-    # If no users exist, allow creation and set is_sysadmin True
-    if not repo.list():
-        is_sysadmin = True
-    else:
-        # Require sysadmin JWT in header
-        requester_username = get_jwt_identity()
-        requester = repo.get_by_username(requester_username)
-        if (
-            not requester
-            or requester.deleted_at is not None
-            or not requester.is_active
-            or not requester.is_sysadmin
-        ):
-            return jsonify({"msg": "Missing or invalid Authorization header"}), 401
-        if(not requester.is_sysadmin):
-            return jsonify({"msg": "Sysadmin privileges required"}), 403
-        is_sysadmin = False
+    repo = UserRepository()
+    requester = repo.get_by_username(requester_username)
+    if (
+        not requester
+        or requester.deleted_at is not None
+        or not requester.is_active
+        or not requester.is_sysadmin
+    ):
+        return jsonify({"msg": "Not authorized to access this page"}), 401
 
     password_hash = generate_password_hash(password)
     try:
