@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 from core.module.projects.repository import ProjectRepository
 from core.module.users.model import UserRole
+from core.module.projects.model import StageRequestCollaboration
 
 projects_api_bp = Blueprint("projects_api_bp", __name__, url_prefix="/projects")
 
@@ -62,9 +63,6 @@ def registrarPedidoAyuda():
                       type: object
                       required: [id, type, description]
                       properties:
-                        id:
-                          type: string
-                          description: Identificador del pedido.
                         type:
                           type: string
                           enum: [economic, materials, labor, other]
@@ -154,7 +152,7 @@ def registrarPedidoAyuda():
                 return jsonify(
                     {"msg": f"Request #{req_index} en stage {index} debe ser un diccionario"}
                 ), 400
-            if not request_data.get("type") or not request_data.get("description") or not request_data.get("id"):
+            if not request_data.get("type") or not request_data.get("description"):
                 continue
             filtered_requests.append(request_data)
 

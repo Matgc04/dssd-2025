@@ -121,13 +121,8 @@ class ProjectRepository:
                 request_description = request_payload.get("description")
                 if not request_description:
                     raise ValueError("Request description is required")
-                
-                request_identifier = request_payload.get("id") or request_payload.get("requestId")
-                if not request_identifier:
-                    raise ValueError("Request id is required")
 
                 request_kwargs = {
-                    "id": request_identifier,
                     "stage_id": stage.id,
                     "project_id": project.id,
                     "request_type": self._coerce_request_type(request_type_value),
