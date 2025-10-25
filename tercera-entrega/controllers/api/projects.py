@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 
 from core.module.projects.repository import ProjectRepository
 from core.module.users.model import UserRole
+from core.module.projects.model import StageRequestCollaboration
 
 projects_api_bp = Blueprint("projects_api_bp", __name__, url_prefix="/projects")
 
@@ -62,9 +63,6 @@ def registrarPedidoAyuda():
                       type: object
                       required: [id, type, description]
                       properties:
-                        id:
-                          type: string
-                          description: Identificador del pedido.
                         type:
                           type: string
                           enum: [economic, materials, labor, other]
@@ -154,7 +152,7 @@ def registrarPedidoAyuda():
                 return jsonify(
                     {"msg": f"Request #{req_index} en stage {index} debe ser un diccionario"}
                 ), 400
-            if not request_data.get("type") or not request_data.get("description") or not request_data.get("id"):
+            if not request_data.get("type") or not request_data.get("description"):
                 continue
             filtered_requests.append(request_data)
 
@@ -259,10 +257,21 @@ def queEtapasNecesitanColaboracion():
       if not project:
           return jsonify({"error": "Proyecto no encontrado."}), 404
       
-      stages = [{
-          "stageId": stage.id,
-          "name": stage.name,
-      } for stage in project.stages if any(not req.is_complete and not req.is_being_completed for req in stage.requests)]
+      stages = []
+      for stage in project.stages:
+          pending_requests = [
+              request
+              for request in stage.requests
+              if not request.is_complete and not request.is_being_completed
+          ]
+          if not pending_requests:
+              continue
+
+          stage_payload = _serialize_stage(stage)
+          stage_payload["requests"] = [
+              _serialize_request(request) for request in pending_requests
+          ]
+          stages.append(stage_payload)
       
       return jsonify({"stages": stages}), 200
 
@@ -599,6 +608,7 @@ def _serialize_request(request):
         "unit": request.unit,
         "order": request.order,
         "isComplete": request.is_complete,
+        "isBeingCompleted": request.is_being_completed,
         "createdAt": request.created_at.isoformat() if request.created_at else None,
         "updatedAt": request.updated_at.isoformat() if request.updated_at else None,
     }
