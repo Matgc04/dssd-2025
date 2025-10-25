@@ -11,7 +11,7 @@ auth_api_bp = Blueprint("auth_api_bp", __name__, url_prefix="/auth")
 @auth_api_bp.route("/login", methods=["POST"])
 def login():
     """
-    User login
+    Login de usuarios
     ---
     tags:
       - auth
@@ -78,7 +78,7 @@ def login():
 @jwt_required(optional=True)
 def create_user():
     """
-    Create a new user (sysadmin only)
+    Crear un nuevo usuario (solo sysadmin)
     ---
     tags:
       - auth

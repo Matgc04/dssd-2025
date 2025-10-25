@@ -218,10 +218,6 @@ def queEtapasNecesitanColaboracion():
           schema:
             type: object
             properties:
-              projectId:
-                type: integer
-              title:
-                type: string
               stages:
                 type: array
                 items:
@@ -233,6 +229,13 @@ def queEtapasNecesitanColaboracion():
                       type: string
         400:
           description: Parámetros inválidos
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+        401:
+          description: Token JWT inválido o faltante
           schema:
             type: object
             properties:
@@ -298,6 +301,8 @@ def quiero_colaborar():
     responses:
       200:
         description: Intención de colaboración registrada
+      400:
+        description: Datos de entrada inválidos o incompletos
       401:
         description: Token JWT inválido o faltante
       403:
@@ -435,9 +440,9 @@ def termino_colaboracion():
         description: Token JWT inválido o faltante
       403:
         description: El usuario no posee el rol autorizado para completar colaboración
-    404:
+      404:
         description: Colaboración no encontrada
-    409:
+      409:
         description: La colaboración ya fue completada
     """
     payload = request.get_json(silent=True) or {}
@@ -457,9 +462,9 @@ def termino_colaboracion():
     except ValueError as exc:
         return jsonify({"msg": str(exc)}), 400
     except LookupError as exc:
-        return jsonify({"msg": str(exc)}), 404
+        return jsonify({"msg": "No se encontró la colaboración"}), 404
     except RuntimeError as exc:
-        return jsonify({"msg": str(exc)}), 409
+        return jsonify({"msg": "La colaboración ya fue completada"}), 409
     
     return jsonify({"msg": "Colaboración completada"}), 200
 
