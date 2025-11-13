@@ -1,7 +1,7 @@
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import { cookies } from "next/headers";
-import { store } from "@/lib/store";
+import { getSession } from "@/lib/auth";
 import { Toaster } from "react-hot-toast";
 
 export const metadata = {
@@ -10,9 +10,7 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  const cookieStore = await cookies();
-  const sid = cookieStore.get("sid")?.value;
-  const session = sid ? await store.get(sid) : null;
+  const session = await getSession();
   const isAuthenticated = Boolean(session);
 
   return (

@@ -55,6 +55,12 @@ docker run --name postgres-dev \
 docker ps
 ```
 
+### Si usaste esta opcion antes y el contenedor ya existe, inicia el contenedor con:
+
+```bash
+docker start postgres-dev
+```
+
 #### Opción B: PostgreSQL local
 
 Si prefieres instalar PostgreSQL localmente:
@@ -98,7 +104,8 @@ dssd-2025/
 ├── app/                    # Rutas y páginas de Next.js
 │   ├── api/               # API routes
 │   ├── login/             # Página de login
-│   └── projects/          # Páginas de proyectos
+│   ├── projects/          # Páginas de proyectos
+│   └── forbidden/          # Página 403
 ├── components/            # Componentes reutilizables
 │   └── projects/          # Componentes específicos de proyectos
 ├── lib/                   # Librerías y utilidades
@@ -106,6 +113,8 @@ dssd-2025/
 │   ├── validation/        # Esquemas de validación
 │   ├── bonita.js         # Integración con Bonita
 │   ├── prisma.js         # Cliente de Prisma
+│   ├── auth.js         # Metodo para obtener sesion del usuario
+│   ├── constants.js      # Constantes del proyecto
 │   ├── projectMapper.js  # Transformación de datos
 │   └── projectService.js # Servicios de proyectos
 ├── prisma/               # Configuración de Prisma
@@ -117,6 +126,11 @@ dssd-2025/
 
 El sistema se integra con Bonita BPM para la gestión de procesos. Las configuraciones de Bonita se encuentran en `lib/bonita.js`.
 
-## 📄 Licencia
 
-Este proyecto es para fines académicos - DSSD 2025.
+## Usuarios y Roles de Prueba
+Usuario rol miembro: walter.bates bpm
+Usuario con rol ONG originante: ongColaboradora1 bpm
+Usuario con rol Red ONG: redOng1 bpm
+Usuario con rol Consejo Directivo: consejoDirectivo1 bpm
+
+Los roles están definidos en `lib/constants.js` y en el proyecto de bonita (ver main).

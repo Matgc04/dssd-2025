@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { newSid } from "@/lib/sessionStore";
+import { loginBonitaUser, fetchBonitaJson } from "@/lib/bonita";
 
 const BONITA =
   process.env.BONITA_URL || "http://localhost:8080"; // yo puse esta ip http://172.28.224.1:8080 porque con WSL me arma quilombo con localhost
@@ -21,65 +22,69 @@ export async function POST(request) {
     return NextResponse.json({ error: "Se necesita usuario y contraseña" }, { status: 400 });
   }
 
-  // 1) Login en Bonita
-  const loginRes = await fetch(`${BONITA}/bonita/loginservice`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "*/*",
-    },
-    body: new URLSearchParams({ username, password }).toString(),
-    redirect: "manual",
-  });
-
-  if (!loginRes.ok) {
-    //console.log("Login en Bonita falló", loginRes.status, loginRes.headers);
+  let sessionTokens;
+  try {
+    sessionTokens = await loginBonitaUser({ username, password, baseUrl: BONITA });
+  } catch (err) {
     return NextResponse.json(
-      { error: "Login en Bonita falló" },
-      { status: loginRes.status === 401 ? 401 : 500 }
+      { error: err.message || "Login en Bonita falló" },
+      { status: err.status ?? 500 }
     );
   }
 
-  const raw =
-    typeof loginRes.headers.raw === "function"
-      ? loginRes.headers.raw()
-      : null;
-  const setCookies =
-    raw?.["set-cookie"] ??
-    (typeof loginRes.headers.getSetCookie === "function"
-      ? loginRes.headers.getSetCookie()
-      : null) ??
-    [];
+  let userId;
+  let resolvedUserName = username;
+  let roleId;
+  let roleName;
 
-  const jsessionCookie =
-    setCookies.find((c) => c.startsWith("JSESSIONID=")) || null;
-  const jsessionId = jsessionCookie?.split(";")[0] ?? null;
-  const tokenCookie =
-    setCookies.find((c) => c.startsWith("X-Bonita-API-Token=")) || null;
+  try {
+    const sessionInfo = await fetchBonitaJson(sessionTokens, "/bonita/API/system/session/unusedId");
+    userId = sessionInfo?.user_id;
+    resolvedUserName = sessionInfo?.user_name || resolvedUserName;
+    if (!userId) {
+      const err = new Error("No se pudo determinar el usuario de Bonita");
+      err.status = 500;
+      throw err;
+    }
 
-  const headerToken =
-    loginRes.headers.get("X-Bonita-API-Token") ||
-    loginRes.headers.get("x-bonita-api-token") ||
-    null;
+    const memberships = await fetchBonitaJson(
+      sessionTokens,
+      `/bonita/API/identity/membership?f=user_id=${encodeURIComponent(userId)}&p=0&c=1`
+    );
+    const primaryMembership = Array.isArray(memberships) ? memberships[0] : null;
+    roleId = primaryMembership?.role_id;
+    if (!roleId) {
+      const err = new Error("El usuario no tiene roles asociados");
+      err.status = 404;
+      throw err;
+    }
 
-  const cookiePairToValue = (c) =>
-    c ? c.split(";")[0].split("=")[1] : null;
-
-  const csrfToken = headerToken ?? cookiePairToValue(tokenCookie);
-
-  if (!jsessionId || !csrfToken) {
-    return NextResponse.json({ error: "Missing session or CSRF token" }, { status: 500 });
+    const role = await fetchBonitaJson(
+      sessionTokens,
+      `/bonita/API/identity/role/${encodeURIComponent(roleId)}`
+    );
+    roleName = role?.name ?? null;
+  } catch (err) {
+    return NextResponse.json(
+      { error: err.message || "No se pudo obtener la información del usuario en Bonita" },
+      { status: err.status ?? 500 }
+    );
   }
+
+  console.log(`Usuario ${resolvedUserName} (${userId}) con rol ${roleName} (${roleId}) autenticado.`);
 
   // 2) crear SID y guardar en store con TTL
   const sid = newSid();
   await store.set(
     sid,
     {
-      jsessionId,
-      csrfToken,
-      bonitaBase: BONITA,
-      user: username,
+      jsessionId: sessionTokens.jsessionId,
+      csrfToken: sessionTokens.csrfToken,
+      bonitaBase: sessionTokens.bonitaBase,
+      user: resolvedUserName,
+      userId,
+      roleId,
+      roleName: String(roleName).toUpperCase(),
     },
     25 * 60
   );
@@ -96,7 +101,11 @@ export async function POST(request) {
 
   console.log("Guardé sesión SID:", sid);
 
-  return NextResponse.json({ ok: true, user: username });
+  return NextResponse.json({
+    ok: true,
+    user: resolvedUserName,
+    role: roleName,
+  });
 }
 
 export async function GET() {
