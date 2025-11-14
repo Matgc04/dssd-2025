@@ -15,15 +15,29 @@ export default async function Home() {
       </p>
       <div className="home-actions">
         {role === ROLES.ONG_ORIGINANTE && (
+          <>
         <Link href="/projects/new" className="auth-submit">
           Crear un nuevo proyecto
         </Link>
+        <Link href="/projects" className="auth-submit">
+          Ver mis proyectos
+        </Link>
+        </>
         )}
         {role === ROLES.RED_ONG && (
-        "Contenido para miembros de la Red ONG"
+        <Link href="/projects/colaborate" className="auth-submit">
+          TODO: Colaborar en proyectos
+        </Link>
         )}
         {role === ROLES.CONSEJO_DIRECTIVO && (
-        "Contenido para miembros del consejo directivo"
+        <>
+        <Link href="/projects/evaluate" className="auth-submit">
+          TODO: evaluar proyectos
+        </Link>
+        <Link href="/reports/" className="auth-submit">
+        TODO: ver reportes
+        </Link>
+        </>
         )}
         {(!isAuthenticated || !role || role === ROLES.MIEMBRO)  && (
         "Contenido para miembros estándar o usuarios sin rol definido"

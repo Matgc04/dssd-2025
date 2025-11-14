@@ -4,7 +4,6 @@ import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { projectSchema } from "@/lib/validation/projectSchema";
-import { EXAMPLE_PROJECT } from "@/lib/examples";
 import ProjectFields from "@/components/projects/ProjectFields";
 import Stages from "@/components/projects/Stages";
 import styles from "@/components/projects/FormStyles.module.css";
@@ -12,7 +11,7 @@ import { toast } from "react-hot-toast";
 
 const PROCESS_DISPLAY_NAME = "Creacion de proyecto y colaboracion de ONGs";
 
-export default function NewProjectPage() {
+export default function NewProjectPage({ org_id }) {
   const [loading, setLoading] = useState(false);
 
   const methods = useForm({
@@ -24,7 +23,7 @@ export default function NewProjectPage() {
         originCountry: "AR",
         startDate: "",
         endDate: "",
-        createdByOrgId: "",
+        createdByOrgId: org_id,
         stages: [
           {
             name: "",
@@ -41,7 +40,7 @@ export default function NewProjectPage() {
     mode: "onBlur",
   });
 
-  const { handleSubmit, setValue } = methods;
+  const { handleSubmit } = methods;
 
   const onSubmit = async (formData) => {
     console.log("Payload listo para enviar a Bonita / API:", formData);
@@ -104,17 +103,6 @@ export default function NewProjectPage() {
           <div className={styles.formActions}>
             <button type="submit" className={`${styles.button} ${styles.buttonPrimary}`} disabled={loading}>
               {loading ? "Enviando..." : "Guardar proyecto"}
-            </button>
-            <button
-              type="button"
-              className={`${styles.button} ${styles.buttonGhost}`}
-              onClick={() => {
-                setValue("project", EXAMPLE_PROJECT, { shouldDirty: true, shouldValidate: true });
-                toast.success("Ejemplo cargado");
-              }}
-              disabled={loading}
-            >
-              Rellenar ejemplo
             </button>
           </div>
         </form>

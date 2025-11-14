@@ -15,5 +15,7 @@ export default async function NewProjectPage() {
     redirect("/forbidden");
   }
 
-  return <NewProjectForm />;
+  return <NewProjectForm 
+    org_id={session.userId}
+  />;
 }

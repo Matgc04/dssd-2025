@@ -25,16 +25,6 @@ export default function ProjectFields() {
           <FieldError err={errors.project?.name} />
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>Organización creadora (ID) *</label>
-          <input
-            className={styles.control}
-            {...register("project.createdByOrgId")}
-            placeholder="ong_123"
-          />
-          <FieldError err={errors.project?.createdByOrgId} />
-        </div>
-
         <div className={`${styles.field} ${styles.fullRow}`}>
           <label className={styles.label}>Descripción *</label>
           <textarea
@@ -68,6 +58,9 @@ export default function ProjectFields() {
           <FieldError err={errors.project?.endDate} />
         </div>
       </div>
+
+      <input type="hidden" {...register("project.createdByOrgId")} />
+      <FieldError err={errors.project?.createdByOrgId} />
     </fieldset>
   );
 }
