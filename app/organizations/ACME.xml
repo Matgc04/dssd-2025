@@ -29,6 +29,7 @@
       <password encrypted="false">bpm</password>
     </user>
     <user userName="ongColaboradora1">
+      <manager></manager>
       <personalData/>
       <professionalData/>
       <password encrypted="false">bpm</password>
