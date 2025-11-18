@@ -122,8 +122,8 @@ def registrarPedidoAyuda():
     claims = get_jwt()
     role = claims.get("role")
 
-    if role != UserRole.ONG.value:
-        return jsonify({"msg": "Rol ONG requerido"}), 403
+    if role != UserRole.ONG_ORIGINANTE.value:
+        return jsonify({"msg": "Rol ONG originante requerido"}), 403
     
     payload = request.get_json(silent=True) or {}
 
@@ -325,8 +325,8 @@ def quiero_colaborar():
     claims = get_jwt()
 
     role = claims.get("role")
-    if role != UserRole.ONG.value:
-        return jsonify({"msg": "Rol ONG requerido"}), 403
+    if role != UserRole.RED_ONG.value:
+        return jsonify({"msg": "Rol red de ONGs requerido"}), 403
 
     collaborator_org_id = (
       payload.get("org_id") or payload.get("orgId")
@@ -458,8 +458,8 @@ def termino_colaboracion():
     
     claims = get_jwt()
     role = claims.get("role")
-    if role != UserRole.ONG.value:
-        return jsonify({"msg": "Rol ONG requerido"}), 403
+    if role not in (UserRole.ONG_ORIGINANTE.value, UserRole.RED_ONG.value):
+        return jsonify({"msg": "Rol ONG originante o rol red de ongs requerido"}), 403 #no se cual rol deberia ser el correcto lo dejo asi por ahora
 
     collaboration_id = payload.get("collaboration_id")
     if not collaboration_id:
