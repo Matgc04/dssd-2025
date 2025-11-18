@@ -44,8 +44,8 @@ Esto crea las tablas en la base de datos y el seed pone algunos usuarios de ejem
     - password: admin123
   Este usuario es sysadmin y puede crear otros usuarios.
 
-    - username: demo{1,2,3,4}
-    - password: demo123
+    - username: {walter.bates, ongColaboradora1, redOng1, consejoDirectivo1, sinDefinir1}
+    - password: bpm
   Usuario sin sysadmin, tiene los distintos roles.
 
 El login devuelve un jwt que se puede usar para las rutas protegidas.
