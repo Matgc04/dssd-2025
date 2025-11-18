@@ -27,10 +27,10 @@ def login():
           properties:
             username:
               type: string
-              example: demo2
+              example: ongColaboradora1
             password:
               type: string
-              example: demo123
+              example: bpm
     responses:
       200:
         description: JWT issued
