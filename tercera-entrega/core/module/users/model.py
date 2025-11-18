@@ -9,10 +9,11 @@ from core.database import db
 
 
 class UserRole(str, Enum):
-    ONG = "ong"
-    CONSEJO_DIRECTIVO = "consejo directivo"
-    SIN_DEFINIR = "sin definir"
-
+    MIEMBRO = "MEMBER"
+    ONG_ORIGINANTE = "ONG COLABORADORA"
+    RED_ONG = "RED ONG"
+    CONSEJO_DIRECTIVO = "CONSEJO DIRECTIVO"
+    SIN_DEFINIR = "SIN DEFINIR"
 
 class User(db.Model):
     __tablename__ = "users"
