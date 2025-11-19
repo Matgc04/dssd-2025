@@ -9,10 +9,11 @@ import {
 import { createProject, updateProjectBonitaCaseId, updateProjectStatus } from "@/lib/projectService";
 import { cookies } from "next/headers";
 import { store } from "@/lib/store";
-import { randomUUID } from "node:crypto";
 
 const PROJECT_PROCESS_DISPLAY_NAME = "ONG Originante y red de ongs"; // id 5571391406350378522
                     //mejor nombre = "Creacion de proyecto y colaboracion de ONGs
+
+const CLOUD_URL = process.env.CLOUD_URL || "http://localhost:8000"; 
 
 function computeTotals(project) { 
   const stages = Array.isArray(project?.stages) ? project.stages : [];
@@ -103,6 +104,10 @@ export async function POST(request) {
     await updateProjectBonitaCaseId(savedProject.id, caseId);
     console.log("Proyecto actualizado con Bonita Case ID:", caseId);
 
+    const sid = cookieStore.get("sid")?.value;
+    const sess = await store.get(sid);
+    const tokenJWT = sess.tokenJWT;
+
     try {
       await setCaseVariable(caseId, "id", projectId, { type: "java.lang.String" });
       await setCaseVariable(caseId, "pedidosActuales", pedidosActuales, {
@@ -113,6 +118,8 @@ export async function POST(request) {
         type: "java.lang.Integer",
         stringify: false,
       });
+      await setCaseVariable(caseId, "tokenJWT", tokenJWT, { type: "java.lang.String" });
+      await setCaseVariable(caseId, "registrarPedidoAyudaEndpoint", `${CLOUD_URL}/api/v1/projects/registrarPedidoAyuda`, { type: "java.lang.String" });
     } catch (err) {
       console.error(`Error setting case variable for case ${caseId}:`, err);
     }

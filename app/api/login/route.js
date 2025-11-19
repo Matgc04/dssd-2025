@@ -7,6 +7,9 @@ import { loginBonitaUser, fetchBonitaJson } from "@/lib/bonita";
 const BONITA =
   process.env.BONITA_URL || "http://localhost:8080"; // yo puse esta ip http://172.28.224.1:8080 porque con WSL me arma quilombo con localhost
 
+const CLOUD_URL = process.env.CLOUD_URL || "http://localhost:8000"; 
+//en el dockerfile esta el 8080 pero en localp ara que no se choque con bonita le pueden cambiar a 8000 cuando hacen el docker run
+
 export async function POST(request) {
   let payload;
   try {
@@ -71,7 +74,29 @@ export async function POST(request) {
     );
   }
 
-  console.log(`Usuario ${resolvedUserName} (${userId}) con rol ${roleName} (${roleId}) autenticado.`);
+  console.log(`Usuario ${resolvedUserName} (${userId}) con rol ${roleName} (${roleId}) autenticado en bonita.`);
+
+  //Nos logueamos en el cloud para obtener el token JWT
+  const res = await fetch(CLOUD_URL + "/api/v1/auth/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!res.ok) {
+    // opcional: loguear el body para ver el error del backend
+    const errorBody = await res.text();
+    console.error("Login en cloud fallido:", errorBody);
+    throw new Error("Login fallido");
+  }
+
+  const data = await res.json();
+  const token = data.access_token;
+
+  console.log(`Usuario ${resolvedUserName} autenticado en cloud. Token: ${token}`);
 
   // 2) crear SID y guardar en store con TTL
   const sid = newSid();
@@ -85,8 +110,9 @@ export async function POST(request) {
       userId,
       roleId,
       roleName: String(roleName).toUpperCase(),
+      tokenJWT: token,
     },
-    25 * 60
+    25 * 60 //TODO: hacer que el ttl sea el mismo que el del cloud o menos
   );
 
   // setear cookie opaca para el cliente
