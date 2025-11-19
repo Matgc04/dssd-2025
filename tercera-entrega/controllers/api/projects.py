@@ -232,6 +232,37 @@ def queEtapasNecesitanColaboracion():
                       type: string
                     name:
                       type: string
+                  requests:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        type:
+                          type: string
+                        description:
+                          type: string
+                        amount:
+                          type: number
+                        currency:
+                          type: string
+                        quantity:
+                          type: number
+                        unit:
+                          type: string
+                        order:
+                          type: integer
+                        isComplete:
+                          type: boolean
+                        isBeingCompleted:
+                          type: boolean
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
         400:
           description: Parámetros inválidos
           schema:
