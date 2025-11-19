@@ -9,7 +9,14 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from core.database import db
-from .model import Project, RequestType, Stage, StageRequest, StageRequestCollaboration
+from .model import (
+    Project,
+    RequestType,
+    Stage,
+    StageRequest,
+    StageRequestCollaboration,
+    StatusType,
+)
 
 
 class ProjectRepository:
@@ -50,6 +57,22 @@ class ProjectRepository:
             stmt = stmt.where(Project.created_by_org_id == org_id)
         return self.session.execute(stmt).scalars().all()
 
+    def list_pending_projects_needing_collaboration(self) -> Iterable[Project]:
+        """Return pending projects that still have requests needing help."""
+
+        stmt = (
+            select(Project)
+            .join(StageRequest, StageRequest.project_id == Project.id)
+            .where(
+                Project.status == StatusType.PENDING,
+                StageRequest.is_complete.is_(False),
+                StageRequest.is_being_completed.is_(False),
+            )
+            #.order_by(Project.created_at.desc())
+            .distinct()
+        )
+        return self.session.execute(stmt).scalars().unique().all()
+
     def update_project(self, project: Project, /, **changes) -> Project:
         return self._apply_updates(Project, project, changes)
 
@@ -63,6 +86,7 @@ class ProjectRepository:
         *,
         project_id: str,
         created_by_org_id: str,
+        bonita_case_id: str,
         stages_payload: Iterable[dict],
     ) -> Project | None:
         if not project_id:
@@ -71,12 +95,14 @@ class ProjectRepository:
             raise ValueError("created_by_org_id is required")
         if stages_payload is None:
             raise ValueError("stages_payload is required")
+        if bonita_case_id is None:
+            raise ValueError("bonita_case_id is required")
 
         session = self.session
         project = self.get_project(project_id)
 
         if project is None:
-            project = Project(id=project_id, created_by_org_id=created_by_org_id)
+            project = Project(id=project_id, created_by_org_id=created_by_org_id, bonita_case_id=bonita_case_id)
             session.add(project)
         else:
             return None

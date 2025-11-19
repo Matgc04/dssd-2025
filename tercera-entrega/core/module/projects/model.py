@@ -10,6 +10,10 @@ from sqlalchemy.orm import Mapped, relationship, foreign
 
 from core.database import db
 
+class StatusType(str, Enum):
+    PENDING = "pending"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
 
 class RequestType(str, Enum):
     MONETARIO = "economic"
@@ -22,7 +26,9 @@ class Project(db.Model):
     __tablename__ = "projects"
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    bonita_case_id = db.Column(db.String(64), nullable=True, index=True)
     created_by_org_id = db.Column(db.String(255), nullable=False, index=True)
+    status = db.Column(SAEnum(StatusType, name="project_status"), nullable=False, default=StatusType.PENDING)
     created_at = db.Column(db.DateTime, nullable=False, server_default=func.now())
     updated_at = db.Column(
         db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now()

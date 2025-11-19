@@ -33,6 +33,9 @@ def registrarPedidoAyuda():
             orgId:
               type: string
               description: Identificador de la organización que crea el pedido.
+            bonitaCaseId:
+              type: string
+              description: Identificador del caso en Bonita.
             stages:
               type: array
               description: Lista de etapas que requieren ayuda.
@@ -131,6 +134,9 @@ def registrarPedidoAyuda():
     org_id = payload.get("orgId") or payload.get("org_id")
     stages_payload = payload.get("stages")
 
+    #print(f"payload recibido en registrarPedidoAyuda: {payload}")
+    #print(f"project_id: {project_id}, org_id: {org_id}, stages_payload: {stages_payload}")
+
     if not project_id or not org_id or stages_payload is None:
         return jsonify({"msg": "projectId, orgId y stages son obligatorios"}), 400
 
@@ -176,6 +182,7 @@ def registrarPedidoAyuda():
         project = repo.upsert_project_with_requests(
             project_id=project_id,
             created_by_org_id=org_id,
+            bonita_case_id=payload.get("bonitaCaseId"),
             stages_payload=stages_with_requests,
         )
     except ValueError as exc:
@@ -274,6 +281,56 @@ def queEtapasNecesitanColaboracion():
           stages.append(stage_payload)
       
       return jsonify({"stages": stages}), 200
+
+
+@projects_api_bp.route("/pendientesNecesitanColaboracion", methods=["GET"])
+@jwt_required()
+def proyectos_pendientes_necesitan_colaboracion():
+    """Listar proyectos pendientes con pedidos de ayuda sin atender.
+    ---
+    tags:
+      - Proyectos ONGs
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Proyectos pendientes que todavía requieren colaboración.
+        schema:
+          type: object
+          properties:
+            projects:
+              type: array
+              items:
+                type: object
+                properties:
+                  projectId:
+                    type: string
+                  orgId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, executing, completed]
+                  bonitaCaseId:
+                    type: string
+                    nullable: true
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+      401:
+        description: Token JWT inválido o faltante.
+      500:
+        description: Error inesperado en el servidor.
+    """
+
+    repo = ProjectRepository()
+    projects = repo.list_pending_projects_needing_collaboration()
+    payload = {
+        "projects": [_serialize_project_summary(project) for project in projects]
+    }
+    return jsonify(payload), 200
 
 @projects_api_bp.route("/quieroColaborar/", methods=["POST"])
 @jwt_required()
@@ -574,6 +631,17 @@ def _serialize_project(project):
         "createdAt": project.created_at.isoformat() if project.created_at else None,
         "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
         "stages": [_serialize_stage(stage) for stage in project.stages],
+    }
+
+
+def _serialize_project_summary(project):
+    return {
+        "projectId": project.id,
+        "orgId": project.created_by_org_id,
+        "status": project.status.value,
+        "bonitaCaseId": project.bonita_case_id,
+        "createdAt": project.created_at.isoformat() if project.created_at else None,
+        "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
     }
 
 
