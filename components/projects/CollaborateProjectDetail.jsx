@@ -50,7 +50,7 @@ function formatDate(value) {
   }
 }
 
-export default function CollaborateProjectDetail({ projectId, orgId, stagesPayload, fetchError }) {
+export default function CollaborateProjectDetail({ projectId, stagesPayload, fetchError }) {
   const stages = useMemo(() => normalizeStages(stagesPayload), [stagesPayload]);
   const initialStageId = stages[0]?.id ?? "";
   const initialRequestId = stages[0]?.requests?.[0]?.id ?? "";
@@ -93,18 +93,32 @@ export default function CollaborateProjectDetail({ projectId, orgId, stagesPaylo
   const stageRegister = register("stageId");
   const requestRegister = register("requestId");
 
-  const onSubmit = (formValues) => {
+  const onSubmit = async (formValues) => {
     const payload = {
       ...formValues,
       projectId,
-      organizationId: orgId,
-      stageName: selectedStage?.name,
-      requestType: selectedRequest?.type,
-      requestDescription: selectedRequest?.description,
     };
 
-    console.log("Collaboration payload listo para enviar:", payload);
-    toast.success("Tu colaboración está lista para enviarse.");
+    try {
+      const response = await fetch("/api/projects/colaborate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = result?.error ?? "No pudimos registrar tu colaboración.";
+        throw new Error(message);
+      }
+
+      toast.success("Gracias, registramos tu colaboración.");
+    } catch (error) {
+      console.error("Error enviando colaboración:", error);
+      toast.error(error.message || "No pudimos registrar tu colaboración.");
+    }
   };
 
   if (fetchError) {

@@ -71,7 +71,6 @@ export default async function CollaborateProjectDetailPage({ params }) {
 
       <CollaborateProjectDetail
         projectId={projectId}
-        orgId={session.userId}
         stagesPayload={collaborationData}
         fetchError={fetchError}
       />
