@@ -15,6 +15,54 @@ const PROJECT_PROCESS_DISPLAY_NAME = "ONG Originante y red de ongs"; // id 55713
 
 const CLOUD_URL = process.env.CLOUD_URL || "http://localhost:8000"; 
 
+const REQUEST_TYPE_MAP = {
+  MONETARIO: "economic",
+  MATERIALES: "materials",
+  MANO_DE_OBRA: "labor",
+  OTRO: "other",
+};
+
+const formatDate = (value) => (value ? new Date(value).toISOString().split("T")[0] : undefined);
+const numberOrUndefined = (value) =>
+  value === null || value === undefined ? undefined : Number(value);
+
+const sortByOrder = (items = []) =>
+  [...items].sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0));
+
+function mapRequestsForBonita(requests = []) {
+  return sortByOrder(requests).map((request) => ({
+    id: request.id,
+    type: REQUEST_TYPE_MAP[request.type] || "other",
+    description: request.description,
+    amount: numberOrUndefined(request.amount),
+    currency: request.currency ?? undefined,
+    quantity: numberOrUndefined(request.quantity),
+    unit: request.unit ?? undefined,
+    order: request.order ?? undefined,
+  }));
+}
+
+function mapStagesForBonita(stages = []) {
+  return sortByOrder(stages).map((stage) => ({
+    id: stage.id,
+    name: stage.name,
+    description: stage.description ?? undefined,
+    startDate: formatDate(stage.startDate),
+    endDate: formatDate(stage.endDate),
+    order: stage.order ?? undefined,
+    requests: mapRequestsForBonita(stage.requests || []),
+  }));
+}
+
+function hydrateProjectForBonita(project, savedProject, bonitaCaseId) {
+  if (!project || !savedProject) return project;
+  project.projectId = savedProject.id;
+  project.orgId = savedProject.createdByOrgId;
+  project.bonitaCaseId = bonitaCaseId;
+  project.stages = mapStagesForBonita(savedProject.stages || []);
+  return project;
+}
+
 function computeTotals(project) { 
   const stages = Array.isArray(project?.stages) ? project.stages : [];
   return stages.reduce((acc, stage) => acc + (stage?.requests?.length ?? 0), 0);
@@ -108,6 +156,10 @@ export async function POST(request) {
     const sess = await store.get(sid);
     const tokenJWT = sess.tokenJWT;
 
+    const proyecto = hydrateProjectForBonita(projectData, savedProject, caseId);
+
+    console.log("Proyecto hidratado para Bonita:", proyecto);
+
     try {
       await setCaseVariable(caseId, "id", projectId, { type: "java.lang.String" });
       await setCaseVariable(caseId, "pedidosActuales", pedidosActuales, {
@@ -120,6 +172,7 @@ export async function POST(request) {
       });
       await setCaseVariable(caseId, "tokenJWT", tokenJWT, { type: "java.lang.String" });
       await setCaseVariable(caseId, "registrarPedidoAyudaEndpoint", `${CLOUD_URL}/api/v1/projects/registrarPedidoAyuda`, { type: "java.lang.String" });
+      await setCaseVariable(caseId, "proyecto", proyecto, { type: "java.lang.String", stringify: true });
     } catch (err) {
       console.error(`Error setting case variable for case ${caseId}:`, err);
     }
