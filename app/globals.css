@@ -358,6 +358,10 @@ a:hover {
   gap: 0.25rem;
 }
 
+.project-card__link.auth-submit {
+  color: var(--surface);
+}
+
 .project-card__link:hover {
   text-decoration: underline;
 }
