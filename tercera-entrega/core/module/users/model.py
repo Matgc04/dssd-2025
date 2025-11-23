@@ -14,6 +14,7 @@ class UserRole(str, Enum):
     RED_ONG = "RED ONG"
     CONSEJO_DIRECTIVO = "CONSEJO DIRECTIVO"
     SIN_DEFINIR = "SIN DEFINIR"
+    BONITA = "BONITA"
 
 class User(db.Model):
     __tablename__ = "users"

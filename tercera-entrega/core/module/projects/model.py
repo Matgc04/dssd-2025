@@ -125,6 +125,8 @@ class StageRequestCollaboration(db.Model):
     collaborator_org_id = db.Column(db.String(255), nullable=False)
     committed_amount = db.Column(db.Numeric(15, 2), nullable=True)
     committed_quantity = db.Column(db.Numeric(15, 3), nullable=True)
+    commited_currency = db.Column(db.String(3), nullable=True) 
+    commited_unit = db.Column(db.String(50), nullable=True) #agrego este campo y el de arriba por si lo que se compromete no es del mismo tipo de lo pedido
     created_at = db.Column(db.DateTime, nullable=False, server_default=func.now())
     updated_at = db.Column(
         db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now()

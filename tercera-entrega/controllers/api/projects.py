@@ -125,7 +125,7 @@ def registrarPedidoAyuda():
     claims = get_jwt()
     role = claims.get("role")
 
-    if role != UserRole.ONG_ORIGINANTE.value:
+    if role not in (UserRole.ONG_ORIGINANTE.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol ONG originante requerido"}), 403
     
     payload = request.get_json(silent=True) or {}
@@ -413,7 +413,7 @@ def quiero_colaborar():
     claims = get_jwt()
 
     role = claims.get("role")
-    if role != UserRole.RED_ONG.value:
+    if role not in (UserRole.RED_ONG.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol red de ONGs requerido"}), 403
 
     collaborator_org_id = (
@@ -546,7 +546,7 @@ def termino_colaboracion():
     
     claims = get_jwt()
     role = claims.get("role")
-    if role not in (UserRole.ONG_ORIGINANTE.value, UserRole.RED_ONG.value):
+    if role not in (UserRole.ONG_ORIGINANTE.value, UserRole.RED_ONG.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol ONG originante o rol red de ongs requerido"}), 403 #no se cual rol deberia ser el correcto lo dejo asi por ahora
 
     collaboration_id = payload.get("collaboration_id")
@@ -574,7 +574,7 @@ def poner_observacion():
     payload = request.get_json(silent=True) or {}
     claims = get_jwt()
     role = claims.get("role")
-    if role != UserRole.CONSEJO_DIRECTIVO.value:
+    if role not in (UserRole.CONSEJO_DIRECTIVO.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
 
     project_id_raw = payload.get("project_id") or payload.get("projectId")
@@ -614,7 +614,7 @@ def observacion_terminada():
     
     claims = get_jwt()
     role = claims.get("role")
-    if role != UserRole.CONSEJO_DIRECTIVO.value:
+    if role not in (UserRole.CONSEJO_DIRECTIVO.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
 
     observacion_id = payload.get("observacion_id")
