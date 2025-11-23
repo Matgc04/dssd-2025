@@ -152,10 +152,6 @@ export async function POST(request) {
     await updateProjectBonitaCaseId(savedProject.id, caseId);
     console.log("Proyecto actualizado con Bonita Case ID:", caseId);
 
-    const sid = cookieStore.get("sid")?.value;
-    const sess = await store.get(sid);
-    const tokenJWT = sess.tokenJWT;
-
     const proyecto = hydrateProjectForBonita(projectData, savedProject, caseId);
 
     console.log("Proyecto hidratado para Bonita:", proyecto);
@@ -170,7 +166,7 @@ export async function POST(request) {
         type: "java.lang.Integer",
         stringify: false,
       });
-      await setCaseVariable(caseId, "tokenJWT", tokenJWT, { type: "java.lang.String" });
+      //await setCaseVariable(caseId, "tokenJWT", tokenJWT, { type: "java.lang.String" }); //ahora bonita se loguea por su cuenta
       await setCaseVariable(caseId, "registrarPedidoAyudaEndpoint", `${CLOUD_URL}/api/v1/projects/registrarPedidoAyuda`, { type: "java.lang.String" });
       await setCaseVariable(caseId, "proyecto", proyecto, { type: "java.lang.String", stringify: true });
     } catch (err) {

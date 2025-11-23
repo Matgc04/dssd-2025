@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { store } from "@/lib/store";
 import { setCaseVariable, searchActivityByCaseId, completeActivity } from "@/lib/bonita";
 
+const taskName = "Cargar compromiso"
+
 function toNumber(value) {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
@@ -25,6 +27,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
+  console.log("Received collaboration payload:", payload);
+
   const {
     projectId,
     stageId,
@@ -36,7 +40,6 @@ export async function POST(request) {
     notes,
     expectedDeliveryDate,
     taskContractValues,
-    preferredTaskName,
   } = payload || {};
 
   if (!projectId || !stageId || !requestId) {
@@ -92,11 +95,11 @@ export async function POST(request) {
   }
 
   try {
-    await setCaseVariable(project.bonitaCaseId, "colaboracion", collaborationVariable, {
+    await setCaseVariable(project.bonitaCaseId, "compromiso", collaborationVariable, {
       type: "java.lang.String",
     });
   } catch (err) {
-    console.error("Error seteando la variable 'colaboracion' en Bonita:", err);
+    console.error("Error seteando la variable 'compromiso' en Bonita:", err);
     return NextResponse.json(
       { error: "No se pudo registrar la colaboración en Bonita" },
       { status: 502 }
@@ -120,8 +123,8 @@ export async function POST(request) {
     }
 
     const nextTask =
-      (preferredTaskName &&
-        tasks.find((task) => task.displayName === preferredTaskName || task.name === preferredTaskName)) ||
+      (taskName &&
+        tasks.find((task) => task.displayName === taskName || task.name === taskName)) ||
       tasks[0];
 
     await completeActivity(nextTask.id, taskContractValues ?? {});

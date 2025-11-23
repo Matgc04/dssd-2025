@@ -23,7 +23,7 @@ export default async function NewProjectPage() {
   const finalUrl = `${baseUrl}/api/projects/getAvailableProjects`;
   console.log("Fetching available projects from:", finalUrl);
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookieHeader = cookieStore.toString();
 
   const response = await fetch(finalUrl, {
