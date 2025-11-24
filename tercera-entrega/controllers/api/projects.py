@@ -158,7 +158,7 @@ def registrarPedidoAyuda():
                 return jsonify(
                     {"msg": f"Request #{req_index} en stage {index} debe ser un diccionario"}
                 ), 400
-            if not request_data.get("type") or not request_data.get("description"):
+            if not request_data.get("type") or not request_data.get("description") or not request_data.get("id"):
                 continue
             filtered_requests.append(request_data)
 
@@ -391,6 +391,8 @@ def quiero_colaborar():
               type: string
             help_request_id:
               type: string
+            collaboration_id:
+              type: string
             commited_amount:
               type: number
             commited_quantity:
@@ -415,6 +417,8 @@ def quiero_colaborar():
     role = claims.get("role")
     if role not in (UserRole.RED_ONG.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol red de ONGs requerido"}), 403
+    
+    print(f"Payload recibido en quieroColaborar: {payload}")
 
     collaborator_org_id = (
       payload.get("org_id") or payload.get("orgId")
@@ -426,6 +430,7 @@ def quiero_colaborar():
     project_id = str(payload.get("project_id") or payload.get("projectId"))
     stage_id = str(payload.get("stage_id") or payload.get("stageId"))
     help_request_id = str(payload.get("help_request_id") or payload.get("helpRequestId"))
+    collaboration_id = str(payload.get("collaboration_id") or payload.get("collaborationId"))
 
     commited_amount = payload.get("commited_amount")
     commited_quantity = payload.get("commited_quantity")
@@ -434,6 +439,7 @@ def quiero_colaborar():
         "project_id": project_id,
         "stage_id": stage_id,
         "help_request_id": help_request_id,
+        "collaboration_id": collaboration_id,
         "commited_amount": commited_amount,
         "commited_quantity": commited_quantity,
     }
@@ -477,6 +483,7 @@ def quiero_colaborar():
     )
 
     collaboration = StageRequestCollaboration(
+        id=collaboration_id,
         stage_request_id=stage_request.id,
         collaborator_org_id=str(collaborator_org_id),
         committed_amount=committed_amount_decimal,
@@ -484,8 +491,8 @@ def quiero_colaborar():
     )
     repo.session.add(collaboration)
 
-    stage_request.is_being_completed = True
-    repo.session.add(stage_request)
+    #stage_request.is_being_completed = True
+    repo.session.add(stage_request) #ver si hace falta esto
 
     repo.session.commit()
 
@@ -504,7 +511,117 @@ def quiero_colaborar():
             "committed_quantity": _decimal_to_float(collaboration.committed_quantity),
         },
     }
+
+    print(f"Response payload en quieroColaborar: {response_payload}")
     return jsonify(response_payload), 200
+
+@projects_api_bp.route("/aceptaColaboracion", methods=["PATCH"])
+@jwt_required()
+def acepta_colaboracion():
+    """
+    Aceptar o rechazar una colaboración para un pedido de ayuda
+    ---
+    tags:
+      - Proyectos ONGs
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [projectId, requestId, collaborationId, accepted]
+          properties:
+            projectId:
+              type: string
+            requestId:
+              type: string
+            collaborationId:
+              type: string
+            accepted:
+              type: boolean
+              description: Indica si la ONG originante acepta la colaboración.
+    responses:
+      200:
+        description: Estado de colaboración actualizado
+      400:
+        description: Datos faltantes o inválidos
+      401:
+        description: Token JWT inválido o faltante
+      403:
+        description: El usuario no posee el rol autorizado para aceptar colaboraciones
+      404:
+        description: Colaboración o pedido de ayuda no encontrado
+      409:
+        description: El pedido de ayuda ya fue completado
+    """
+    payload = request.get_json(silent=True) or {}
+    claims = get_jwt()
+    role = claims.get("role")
+    if role not in (UserRole.ONG_ORIGINANTE.value, UserRole.BONITA.value):
+        return jsonify({"msg": "Rol ONG originante requerido"}), 403
+
+    project_id_raw = payload.get("projectId") or payload.get("project_id")
+    request_id_raw = payload.get("requestId") or payload.get("request_id")
+    collaboration_id_raw = payload.get("collaborationId") or payload.get("collaboration_id")
+    accepted_raw = payload.get("accepted")
+
+    print(f"Payload recibido en aceptaColaboracion: {payload}")
+
+    missing_fields = [
+        name
+        for name, value in {
+            "projectId": project_id_raw,
+            "requestId": request_id_raw,
+            "collaborationId": collaboration_id_raw,
+            "accepted": accepted_raw if accepted_raw is not None else None,
+        }.items()
+        if value in (None, "")
+    ]
+    if missing_fields:
+        return jsonify({"msg": f"Faltan datos obligatorios: {', '.join(sorted(missing_fields))}"}), 400
+
+    repo = ProjectRepository()
+    try:
+        accepted = repo._coerce_bool(accepted_raw)
+    except ValueError:
+        return jsonify({"msg": "El campo accepted debe ser booleano"}), 400
+
+    try:
+        stage_request = repo.set_collaboration_acceptance(
+            project_id=str(project_id_raw),
+            request_id=str(request_id_raw),
+            collaboration_id=str(collaboration_id_raw),
+            accepted=accepted,
+        )
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    except LookupError as exc:
+        print(f"Error de lookup en aceptaColaboracion: {exc}")
+        return jsonify({"msg": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"msg": str(exc)}), 409
+
+    return (
+        jsonify(
+            {
+                "msg": "Estado de colaboración actualizado",
+                "accepted": stage_request.is_being_completed,
+                "request": {
+                    "id": stage_request.id,
+                    "project_id": stage_request.project_id,
+                    "stage_id": stage_request.stage_id,
+                    "is_complete": stage_request.is_complete,
+                    "is_being_completed": stage_request.is_being_completed,
+                },
+                "collaboration_id": str(collaboration_id_raw),
+            }
+        ),
+        200,
+    )
 
 @projects_api_bp.route("/terminoColaboracion", methods=["POST"])
 @jwt_required()

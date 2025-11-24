@@ -21,6 +21,12 @@ class RequestType(str, Enum):
     MANO_DE_OBRA = "labor"
     OTRO = "other"
 
+class CollaborationStatusType(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    COMPLETED = "completed"
+
 
 class Project(db.Model):
     __tablename__ = "projects"
@@ -127,6 +133,8 @@ class StageRequestCollaboration(db.Model):
     committed_quantity = db.Column(db.Numeric(15, 3), nullable=True)
     commited_currency = db.Column(db.String(3), nullable=True) 
     commited_unit = db.Column(db.String(50), nullable=True) #agrego este campo y el de arriba por si lo que se compromete no es del mismo tipo de lo pedido
+    status = db.Column(SAEnum(CollaborationStatusType, name="collaboration_status_type"), nullable=False, default=CollaborationStatusType.PENDING)
+
     created_at = db.Column(db.DateTime, nullable=False, server_default=func.now())
     updated_at = db.Column(
         db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now()

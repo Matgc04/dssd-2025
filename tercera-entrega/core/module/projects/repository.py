@@ -16,6 +16,7 @@ from .model import (
     StageRequest,
     StageRequestCollaboration,
     StatusType,
+    CollaborationStatusType
 )
 
 
@@ -147,8 +148,13 @@ class ProjectRepository:
                 request_description = request_payload.get("description")
                 if not request_description:
                     raise ValueError("Request description is required")
+                
+                request_identifier = request_payload.get("id") or request_payload.get("requestId")
+                if not request_identifier:
+                    raise ValueError("Request id is required")
 
                 request_kwargs = {
+                    "id": request_identifier,
                     "stage_id": stage.id,
                     "project_id": project.id,
                     "request_type": self._coerce_request_type(request_type_value),
@@ -309,6 +315,43 @@ class ProjectRepository:
         self.session.commit()
 
         return collaboration
+
+    def set_collaboration_acceptance(
+        self,
+        *,
+        project_id: str,
+        request_id: str,
+        collaboration_id: str,
+        accepted,
+    ) -> StageRequest:
+        if not project_id:
+            raise ValueError("project_id is required")
+        if not request_id:
+            raise ValueError("request_id is required")
+        if not collaboration_id:
+            raise ValueError("collaboration_id is required")
+
+        stage_request = self.get_request(str(request_id))
+        if stage_request is None or stage_request.project_id != str(project_id):
+            raise LookupError("Pedido de ayuda no encontrado para el proyecto")
+        
+        print(f"stage_request antes de setear is_being_completed: {stage_request}, is_being_completed: {stage_request.is_being_completed}, collaborations: {stage_request.collaborations}")
+
+        collaboration = self.session.get(StageRequestCollaboration, str(collaboration_id))
+        if collaboration is None or collaboration.stage_request_id != stage_request.id:
+            raise LookupError("Colaboración no encontrada para el pedido de ayuda")
+
+        if stage_request.is_complete:
+            raise RuntimeError("El pedido de ayuda ya fue completado")
+
+        stage_request.is_being_completed = self._coerce_bool(accepted)
+        collaboration.status = CollaborationStatusType.ACCEPTED if accepted else CollaborationStatusType.REJECTED
+
+        self.session.add(stage_request)
+        self.session.commit()
+        self.session.refresh(stage_request)
+
+        return stage_request
 
     # -- Helpers ------------------------------------------------------------------
     def _apply_updates(self, model_cls, instance, changes):
