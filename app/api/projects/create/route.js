@@ -155,6 +155,7 @@ export async function POST(request) {
     const proyecto = hydrateProjectForBonita(projectData, savedProject, caseId);
 
     console.log("Proyecto hidratado para Bonita:", proyecto);
+    console.log("request pasado al cloud :", proyecto.stages?.[0]?.requests);
 
     try {
       await setCaseVariable(caseId, "id", projectId, { type: "java.lang.String" });

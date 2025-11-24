@@ -19,10 +19,22 @@ function toNumber(value) {
   return 0;
 }
 
-export async function POST(request) {
+function toNullableDecimal(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = toNumber(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function toDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export async function POST(req) {
   let payload;
   try {
-    payload = await request.json();
+    payload = await req.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
@@ -69,6 +81,34 @@ export async function POST(request) {
     return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
   }
 
+  const stage = await prisma.stage.findUnique({
+    where: { id: stageId },
+    select: { id: true, projectId: true },
+  });
+
+  console.log("stage desde prisma:", stage);
+
+  if (!stage || stage.projectId !== projectId) {
+    return NextResponse.json(
+      { error: "La etapa no pertenece al proyecto" },
+      { status: 404 }
+    );
+  }
+
+  const request = await prisma.request.findUnique({
+    where: { id: requestId },
+    select: { id: true, stageId: true },
+  });
+
+  console.log("request desde prisma:", request);
+
+  if (!request || request.stageId !== stageId) {
+    return NextResponse.json(
+      { error: "El pedido no pertenece a la etapa seleccionada" },
+      { status: 404 }
+    );
+  }
+
   if (!project.bonitaCaseId) {
     return NextResponse.json(
       { error: "El proyecto no tiene caseId asociado en Bonita" },
@@ -85,6 +125,7 @@ export async function POST(request) {
     org_id: session.userId,
     project_id: projectId,
     stage_id: stageId,
+    collaborationId: null,
   };
 
   if (notes) {
@@ -93,6 +134,36 @@ export async function POST(request) {
   if (expectedDeliveryDate) {
     collaborationVariable.expected_delivery_date = expectedDeliveryDate;
   }
+
+  let completedTaskId = null;
+  let persistedCollaboration = null;
+  try {
+    persistedCollaboration = await prisma.collaboration.create({
+      data: {
+        projectId,
+        stageId,
+        requestId,
+        orgId: session.userId,
+        committedAmount: toNullableDecimal(amountAvailable),
+        committedCurrency: currency?.trim() || null,
+        committedQuantity: toNullableDecimal(quantityAvailable),
+        committedUnit: unit?.trim() || null,
+        notes: notes?.trim() || null,
+        expectedDeliveryDate: toDate(expectedDeliveryDate),
+        bonitaCaseId: project.bonitaCaseId,
+        bonitaTaskId: completedTaskId ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("Error guardando la colaboración en BD:", err);
+    return NextResponse.json(
+      { error: "No se pudo guardar la colaboración" },
+      { status: 500 }
+    );
+  }
+
+  console.log("Persisted collaboration in prisma:", persistedCollaboration);
+  collaborationVariable.collaborationId = persistedCollaboration.id;
 
   try {
     await setCaseVariable(project.bonitaCaseId, "compromiso", collaborationVariable, {
@@ -106,7 +177,6 @@ export async function POST(request) {
     );
   }
 
-  let completedTaskId = null;
   try {
     const tasks = await searchActivityByCaseId(project.bonitaCaseId, {
       state: "ready",
@@ -121,6 +191,8 @@ export async function POST(request) {
         { status: 409 }
       );
     }
+
+    //console.log("Tareas disponibles para el caso:", tasks);
 
     const nextTask =
       (taskName &&
@@ -142,5 +214,6 @@ export async function POST(request) {
     caseId: project.bonitaCaseId,
     taskId: completedTaskId,
     colaboracion: collaborationVariable,
+    collaborationId: persistedCollaboration?.id,
   });
 }

@@ -26,6 +26,7 @@ model Project {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   stages          Stage[]
+  collaborations  Collaboration[]
   bonitaCaseId    String?  @unique @db.VarChar(255)
   processStatus   String?  @default("DRAFT") @db.VarChar(50)
   @@map("projects")
@@ -44,6 +45,7 @@ model Stage {
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   requests    Request[]
+  collaborations Collaboration[]
   
   @@map("stages")
 }
@@ -70,7 +72,40 @@ model Request {
   updatedAt   DateTime    @updatedAt
   stageId     String
   stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  collaborations Collaboration[]
   
   @@map("requests")
 }
 
+enum CollaborationStatus {
+  PENDING  @map("pending")
+  ACCEPTED @map("accepted")
+  REJECTED @map("rejected")
+  FINISHED @map("finished")
+  @@map("collaboration_status")
+}
+
+model Collaboration {
+  id                   String    @id @default(cuid())
+  projectId            String
+  stageId              String
+  requestId            String
+  orgId                String    @db.VarChar(255)
+  committedAmount      Decimal?  @db.Decimal(15, 2)
+  committedCurrency    String?   @db.VarChar(3)
+  committedQuantity    Decimal?  @db.Decimal(15, 3)
+  committedUnit        String?   @db.VarChar(50)
+  notes                String?   @db.VarChar(500)
+  expectedDeliveryDate DateTime? @db.Date
+  status               CollaborationStatus @default(PENDING)
+  bonitaCaseId         String?   @db.VarChar(255)
+  bonitaTaskId         String?   @db.VarChar(255)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage   Stage   @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("collaborations")
+}

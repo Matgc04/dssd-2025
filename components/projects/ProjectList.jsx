@@ -100,7 +100,7 @@ export default function ProjectList({ projects = [], pagination, userName }) {
                 <div className="project-card__actions">
                   {/* esto le deberia pegar a bonita y eso al cloud para ver los pedidos, segun el diagrama no se deberia poder mostrar ni entrar a no ser que el proyecto tenga alguna colaboracion que evaluar */}
                   <Link href={`/projects/${project.id}`} className="project-card__link">
-                    TODO: Ver detalle 
+                    Ver detalle
                   </Link>
                 </div>
               </li>

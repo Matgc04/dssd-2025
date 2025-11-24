@@ -26,7 +26,7 @@ export default async function Home() {
         )}
         {role === ROLES.RED_ONG && (
         <Link href="/projects/colaborate" className="auth-submit">
-          TODO: Colaborar en proyectos
+          Colaborar en proyectos
         </Link>
         )}
         {role === ROLES.CONSEJO_DIRECTIVO && (

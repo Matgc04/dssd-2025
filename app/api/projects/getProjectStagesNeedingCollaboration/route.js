@@ -57,6 +57,9 @@ export async function GET(request) {
 
     const data = await response.json();
 
+    console.log("Fetched collaboration detail:", data);
+    console.log("requests for projectId:", data?.stages?.[0]?.requests);
+
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: { "Content-Type": "application/json" },
