@@ -77,32 +77,33 @@ export default function ProjectsAvailableForColaboration({ org_id, projects }) {
         <ul className="projects-grid">
           {availableProjects.map((project, index) => {
             const projectId = extractId(project);
-            const createdAt = project?.createdAt ?? project?.created_at;
-            const organizationId =
-              project?.organizationId ?? project?.orgId ?? project?.org_id ?? "Sin datos";
+            const startDate = project?.startDate ?? project?.start_date;
+            const endDate = project?.endDate ?? project?.end_date;
+            const originCountry = project?.originCountry ?? project?.origin_country ?? "Sin datos";
+            const projectName = project?.name ?? "Proyecto sin nombre";
+            const projectDescription =
+              project?.description ??
+              "Este proyecto todavía no tiene una descripción disponible.";
 
             return (
               <li key={projectId ?? `${project?.name ?? "project"}-${index}`} className="project-card">
                 <div className="project-card__status">Disponible</div>
                 <div className="project-card__body">
-                  <h2 className="project-card__title">{project?.name ?? "Proyecto sin nombre"}</h2>
-                  <p className="project-card__description">
-                    {project?.description ??
-                      "Este proyecto todavía no tiene una descripción disponible."}
-                  </p>
+                  <h2 className="project-card__title">{projectName}</h2>
+                  <p className="project-card__description">{projectDescription}</p>
                 </div>
                 <dl className="project-card__meta">
                   <div>
-                    <dt>Creado</dt>
-                    <dd>{formatDate(createdAt)}</dd>
+                    <dt>País de origen</dt>
+                    <dd>{originCountry}</dd>
                   </div>
                   <div>
-                    <dt>Organización creadora</dt>
-                    <dd>{organizationId}</dd>
+                    <dt>Inicio</dt>
+                    <dd>{formatDate(startDate)}</dd>
                   </div>
                   <div>
-                    <dt>Identificador</dt>
-                    <dd>{projectId ?? "No disponible"}</dd>
+                    <dt>Fin</dt>
+                    <dd>{formatDate(endDate)}</dd>
                   </div>
                 </dl>
                 <div className="project-card__actions">

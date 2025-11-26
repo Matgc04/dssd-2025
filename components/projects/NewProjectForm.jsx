@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { projectSchema } from "@/lib/validation/projectSchema";
@@ -13,6 +14,7 @@ const PROCESS_DISPLAY_NAME = "Creacion de proyecto y colaboracion de ONGs";
 
 export default function NewProjectPage({ org_id }) {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const methods = useForm({
     resolver: yupResolver(projectSchema),
@@ -79,6 +81,8 @@ export default function NewProjectPage({ org_id }) {
         },
         error: (err) => err.message || "Error al guardar proyecto",
       });
+
+      router.push("/projects");
     } catch (err) {
       console.error("Error creando proyecto", err);
     } finally {
