@@ -27,33 +27,37 @@ function serializeProjects(projects = []) {
         quantity: request.quantity ? request.quantity.toString() : null,
         createdAt: request.createdAt?.toISOString() ?? null,
         updatedAt: request.updatedAt?.toISOString() ?? null,
+        collaborations: (request.collaborations ?? []).map((c) => ({
+          id: c.id,
+          status: c.status,
+        })),
       })),
     })),
   }));
 }
 
 export default async function ProjectsPage() {
-  const session = await getSession();
-  const role = session?.roleName;
+    const session = await getSession();
+    const role = session?.roleName;
 
-  if (!session) {
-    redirect("/login");
+    if (!session) {
+      redirect("/login");
+    }
+
+    if (role !== ROLES.ONG_ORIGINANTE) {
+      redirect("/forbidden");
+    }
+
+    const { projects, pagination } = await getProjects({
+      orgId: session.userId,
+      orderBy: "createdAt",
+      orderDirection: "desc",
+      limit: 50,
+    });
+
+    const serializedProjects = serializeProjects(projects);
+
+    return (
+      <ProjectList projects={serializedProjects} pagination={pagination} userName={session.user} />
+    );
   }
-
-  if (role !== ROLES.ONG_ORIGINANTE) {
-    redirect("/forbidden");
-  }
-
-  const { projects, pagination } = await getProjects({
-    orgId: session.userId,
-    orderBy: "createdAt",
-    orderDirection: "desc",
-    limit: 50,
-  });
-
-  const serializedProjects = serializeProjects(projects);
-
-  return (
-    <ProjectList projects={serializedProjects} pagination={pagination} userName={session.user} />
-  );
-}

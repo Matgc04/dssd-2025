@@ -107,7 +107,7 @@ export async function POST(request) {
   try {
     console.log("Guardando proyecto en la base de datos...");
     savedProject = await createProject(payload, { 
-      processStatus: 'DRAFT' 
+      status: 'DRAFT' 
     });
     console.log("Proyecto guardado exitosamente con ID:", savedProject.id);
 
@@ -178,7 +178,7 @@ export async function POST(request) {
       const tasks = await searchActivityByCaseId(caseId, { state: "ready", page: 0, count: 10 });
       if (tasks.length > 0) {
         await completeActivity(tasks[0].id, contract);
-        await updateProjectStatus(savedProject.id, 'RUNNING');
+        await updateProjectStatus(savedProject.id, 'STARTED');
       }
     } catch (err) {
       console.error(`Error completing first task for case ${caseId}:`, err);

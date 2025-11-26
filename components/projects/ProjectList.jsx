@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 const STATUS_LABELS = {
   DRAFT: "Borrador",
   STARTED: "Iniciado",
+  COMPLETED: "Completo",
   RUNNING: "En ejecución",
+  FINISHED: "Finalizado",
   ERROR: "Error",
 };
 
@@ -34,15 +39,40 @@ function getRequestsCount(project) {
 }
 
 function formatStatus(status) {
-  if (!status) {
-    return "Sin estado";
-  }
-
+  if (!status) return "Sin estado";
   return STATUS_LABELS[status] ?? status;
 }
 
 export default function ProjectList({ projects = [], pagination, userName }) {
   const hasProjects = Array.isArray(projects) && projects.length > 0;
+  const [executingId, setExecutingId] = useState(null);
+  const [statusOverrides, setStatusOverrides] = useState({});
+  const router = useRouter();
+
+  const handleExecute = async (project) => {
+    if (!project?.id) return;
+    setExecutingId(project.id);
+    const toastId = toast.loading("Ejecutando proceso en Bonita...");
+    try {
+      const response = await fetch("/api/projects/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: project.id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload?.error || "No se pudo ejecutar el proceso.";
+        throw new Error(message);
+      }
+      setStatusOverrides((prev) => ({ ...prev, [project.id]: "RUNNING" }));
+      router.refresh();
+      toast.success("Proceso ejecutado correctamente", { id: toastId });
+    } catch (err) {
+      toast.error(err.message || "No se pudo ejecutar el proceso.", { id: toastId });
+    } finally {
+      setExecutingId(null);
+    }
+  };
 
   return (
     <section className="projects-shell">
@@ -54,9 +84,8 @@ export default function ProjectList({ projects = [], pagination, userName }) {
           </h1>
           <p className="projects-subtitle">
             {hasProjects
-              ? `Revisá el estado de tus proyectos activos y consultá cada pedido. ${
-                  pagination?.total ?? projects.length
-                } proyecto${(pagination?.total ?? projects.length) === 1 ? "" : "s"} en total.`
+              ? `Revisá el estado de tus proyectos activos y consultá cada pedido. Tenés ${pagination?.total ?? projects.length
+              } proyecto${(pagination?.total ?? projects.length) === 1 ? "" : "s"} en total.`
               : "Todavía no creaste proyectos. Empezá uno nuevo para organizar pedidos y etapas."}
           </p>
         </div>
@@ -70,10 +99,14 @@ export default function ProjectList({ projects = [], pagination, userName }) {
           {projects.map((project) => {
             const stageCount = project?.stages?.length ?? 0;
             const requestCount = getRequestsCount(project);
+            const effectiveStatus = statusOverrides[project.id] ?? project?.status;
             return (
               <li key={project.id} className="project-card">
                 <div className="project-card__status">
-                  {formatStatus(project.processStatus)}
+                  {formatStatus(effectiveStatus)}
+                  {effectiveStatus === "COMPLETED" && (
+                    <span style={{ color: "#0bc40bff"}}> ✓</span>
+                  )}
                 </div>
                 <div className="project-card__body">
                   <h2 className="project-card__title">{project.name}</h2>
@@ -97,11 +130,37 @@ export default function ProjectList({ projects = [], pagination, userName }) {
                     <dd>{formatDate(project.endDate)}</dd>
                   </div>
                 </dl>
-                <div className="project-card__actions">
-                  {/* esto le deberia pegar a bonita y eso al cloud para ver los pedidos, segun el diagrama no se deberia poder mostrar ni entrar a no ser que el proyecto tenga alguna colaboracion que evaluar */}
+                <div className="project-card__actions" style={{ display: "flex", justifyContent: "space-between" }}>
                   <Link href={`/projects/${project.id}`} className="project-card__link">
                     Ver detalle
                   </Link>
+                  {effectiveStatus === "COMPLETED" && (
+                    <Link
+                      href="#"
+                      className="project-card__link"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (executingId) return;
+                        handleExecute(project);
+                      }}
+                      aria-disabled={executingId === project.id}
+                      style={
+                        executingId === project.id
+                          ? { pointerEvents: "none", opacity: 0.6 }
+                          : undefined
+                      }
+                    >
+                      {executingId === project.id ? "Ejecutando..." : "Ejecutar"}
+                    </Link>
+                  )}
+                  {effectiveStatus === "RUNNING" && (
+                    <Link
+                      href={`/projects`}
+                      className="project-card__link"
+                    >
+                      TODO: Finalizar compromisos
+                    </Link>
+                  )}
                 </div>
               </li>
             );

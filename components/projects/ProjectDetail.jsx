@@ -47,6 +47,19 @@ function getStatusLabel(status) {
   return STATUS_LABELS[status] ?? status ?? "Sin estado";
 }
 
+const PROCESS_STATUS_LABELS = {
+  DRAFT: "Borrador",
+  STARTED: "Iniciado",
+  COMPLETED: "Completo",
+  RUNNING: "En ejecución",
+  FINISHED: "Finalizado",
+  ERROR: "Error",
+};
+
+function formatProcessStatus(status){
+  return PROCESS_STATUS_LABELS[status] ?? status ?? "Sin estado";
+}
+
 export default function ProjectDetail({ project, collaborations = [], fetchError }) {
   const [pendingId, setPendingId] = useState(null);
   const [decisions, setDecisions] = useState({});
@@ -136,7 +149,7 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
           </div>
           <div>
             <dt>Estado</dt>
-            <dd>{project.processStatus ?? "Sin estado"}</dd>
+            <dd>{formatProcessStatus(project.status)}</dd>
           </div>
           <div>
             <dt>País</dt>

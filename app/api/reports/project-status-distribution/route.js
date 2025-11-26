@@ -49,6 +49,16 @@ const STATUS_SEGMENTS = [
     color: "#0ea5e9",
   },
   {
+    id: "COMPLETED",
+    label: "Completo",
+    color: "#803bf6ff",
+  },
+  {
+    id: "FINISHED",
+    label: "Finalizado",
+    color: "#f97316",
+  },
+  {
     id: "ERROR",
     label: "Error",
     color: "#ef4444",
@@ -310,7 +320,7 @@ export async function GET() {
       select: {
         id: true,
         bonitaCaseId: true,
-        processStatus: true,
+        status: true,
         startDate: true,
       },
     });
@@ -348,11 +358,11 @@ export async function GET() {
         return;
       }
 
-      const status = getStatusMeta(project?.processStatus);
+      const status = getStatusMeta(project?.status);
       debug("Project bucket assignment:", {
         projectId: project.id,
         bonitaCaseId: project.bonitaCaseId,
-        processStatus: project.processStatus,
+        status: project.status,
         caseStart: caseInfo?.startDate,
         rawStart: caseInfo?.rawStartDate,
         bucketId,

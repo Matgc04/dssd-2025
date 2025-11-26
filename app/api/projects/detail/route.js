@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { store } from "@/lib/store";
 import { ROLES } from "@/lib/constants";
+import { updateProjectStatus } from "@/lib/projectService";
 
 function toIso(value) {
   return value ? value.toISOString() : null;
@@ -24,7 +25,7 @@ function serializeProject(project) {
     endDate: toIso(project.endDate),
     createdByOrgId: project.createdByOrgId,
     bonitaCaseId: project.bonitaCaseId,
-    processStatus: project.processStatus,
+    status: project.status,
     createdAt: toIso(project.createdAt),
     updatedAt: toIso(project.updatedAt),
     stages: (project.stages ?? []).map((stage) => ({
@@ -95,6 +96,25 @@ function serializeCollaboration(collaboration) {
   };
 }
 
+function isProjectCompleted(project, collaborations = []) {
+  const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
+  if (requests.length === 0) return false;
+
+  const collabByRequestId = new Map();
+  collaborations.forEach((collab) => {
+    if (collab?.requestId) {
+      collabByRequestId.set(collab.requestId, collab);
+    }
+  });
+
+  return requests.every((req) => {
+    const collab = collabByRequestId.get(req.id);
+    if (!collab) return false;
+    const status = (collab.status ?? "").toUpperCase();
+    return status === "ACCEPTED";
+  });
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get("projectId");
@@ -157,6 +177,20 @@ export async function GET(request) {
       createdAt: "desc",
     },
   });
+
+  try {
+    const canMarkCompleted =
+      project.status !== "COMPLETED" &&
+      project.status !== "RUNNING" &&
+      isProjectCompleted(project, collaborations);
+
+    if (canMarkCompleted) {
+      await updateProjectStatus(projectId, "COMPLETED");
+      project.status = "COMPLETED";
+    }
+  } catch (err) {
+    console.error("No se pudo actualizar el estado a COMPLETED:", err);
+  }
 
   return NextResponse.json({
     project: serializeProject(project),

@@ -21,6 +21,8 @@ const PROCESS_STATUS_SEGMENTS = [
   { id: "DRAFT", label: "Borrador" },
   { id: "STARTED", label: "Iniciado" },
   { id: "RUNNING", label: "En ejecución" },
+  { id: "COMPLETED", label: "Completo" }, // lo agregue aca pero no se si esta bien 
+  { id: "FINISHED", label: "Finalizado" },// lo mismo
   { id: "ERROR", label: "Error" },
 ];
 
