@@ -28,7 +28,7 @@ model Project {
   stages          Stage[]
   collaborations  Collaboration[]
   bonitaCaseId    String?  @unique @db.VarChar(255)
-  processStatus   String?  @default("DRAFT") @db.VarChar(50)
+  status   String?  @default("DRAFT") @db.VarChar(50)
   @@map("projects")
 }
 
