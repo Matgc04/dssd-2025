@@ -111,7 +111,7 @@ function isProjectCompleted(project, collaborations = []) {
     const collab = collabByRequestId.get(req.id);
     if (!collab) return false;
     const status = (collab.status ?? "").toUpperCase();
-    return status === "ACCEPTED";
+    return status === "ACCEPTED" || status === "REJECTED";
   });
 }
 
@@ -178,19 +178,19 @@ export async function GET(request) {
     },
   });
 
-  try {
-    const canMarkCompleted =
-      project.status !== "COMPLETED" &&
-      project.status !== "RUNNING" &&
-      isProjectCompleted(project, collaborations);
+  // try {
+  //   const canMarkCompleted =
+  //     project.status !== "COMPLETED" &&
+  //     project.status !== "RUNNING" &&
+  //     isProjectCompleted(project, collaborations);
 
-    if (canMarkCompleted) {
-      await updateProjectStatus(projectId, "COMPLETED");
-      project.status = "COMPLETED";
-    }
-  } catch (err) {
-    console.error("No se pudo actualizar el estado a COMPLETED:", err);
-  }
+  //   if (canMarkCompleted) {
+  //     await updateProjectStatus(projectId, "COMPLETED");
+  //     project.status = "COMPLETED";
+  //   }
+  // } catch (err) {
+  //   console.error("No se pudo actualizar el estado a COMPLETED:", err);
+  // }
 
   return NextResponse.json({
     project: serializeProject(project),
