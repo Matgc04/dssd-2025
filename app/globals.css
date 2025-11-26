@@ -297,14 +297,68 @@ a:hover {
   gap: 1rem;
 }
 
+.project-card--finished {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #6b7280;
+  box-shadow: none;
+}
+
+.project-card--finished .project-card__title,
+.project-card--finished .project-card__description,
+.project-card--finished dt,
+.project-card--finished dd {
+  color: #6b7280;
+}
+
+.project-card--finished {
+  color: #9ca3af;
+}
+
 .project-card__status {
   width: fit-content;
   padding: 0.2rem 0.7rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--primary);
+  background: rgba(55, 65, 81, 0.12);
+  color: #374151;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.project-card__status--draft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.project-card__status--started {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.project-card__status--running {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.project-card__status--completed {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.project-card__status--finished {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.project-card__status--error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.project-card__status--default {
+  background: rgba(55, 65, 81, 0.12);
+  color: #374151;
 }
 
 .project-card__body {
