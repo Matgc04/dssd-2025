@@ -129,7 +129,12 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
       if (!res.ok) {
         throw new Error(payload?.error || "No se pudo completar la tarea en Bonita.");
       }
-      toast.success("Accion registrada en Bonita.", { id: toastId });
+      const successMessage =
+        action === "apply"
+          ? "Correcciones registradas en Bonita."
+          : "Observacion marcada como completada.";
+      toast.success(successMessage, { id: toastId });
+      router.refresh();
     } catch (err) {
       toast.error(err.message || "Error al completar la tarea.", { id: toastId });
     } finally {
@@ -219,25 +224,31 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
             </div>
             <div>{item.content}</div>
                 {isOriginante ? (
-                  <div className="project-card__actions" style={{ justifyContent: "flex-start", gap: "0.5rem" }}>
-                    <button
-                      type="button"
-                      className="auth-submit"
-                      onClick={() => handleObservationAction(item.id, "apply")}
-                      disabled={obsActionId === `apply-${item.id}`}
-                    >
-                      {obsActionId === `apply-${item.id}` ? "Marcando..." : "Aplicar correcciones"}
-                    </button>
-                    <button
-                      type="button"
-                      className="auth-submit"
-                      style={{ background: "var(--success)" }}
-                      onClick={() => handleObservationAction(item.id, "complete")}
-                      disabled={obsActionId === `complete-${item.id}`}
-                    >
-                      {obsActionId === `complete-${item.id}` ? "Marcando..." : "Completar observacion"}
-                    </button>
-                  </div>
+                  item.resolved ? (
+                    <span className="project-card__badge" style={{ background: "var(--success)", color: "#0b3b18" }}>
+                      Observacion completada
+                    </span>
+                  ) : (
+                    <div className="project-card__actions" style={{ justifyContent: "flex-start", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className="auth-submit"
+                        onClick={() => handleObservationAction(item.id, "apply")}
+                        disabled={obsActionId === `apply-${item.id}`}
+                      >
+                        {obsActionId === `apply-${item.id}` ? "Marcando..." : "Aplicar correcciones"}
+                      </button>
+                      <button
+                        type="button"
+                        className="auth-submit"
+                        style={{ background: "var(--success)" }}
+                        onClick={() => handleObservationAction(item.id, "complete")}
+                        disabled={obsActionId === `complete-${item.id}`}
+                      >
+                        {obsActionId === `complete-${item.id}` ? "Marcando..." : "Completar observacion"}
+                      </button>
+                    </div>
+                  )
                 ) : null}
           </div>
         ))}

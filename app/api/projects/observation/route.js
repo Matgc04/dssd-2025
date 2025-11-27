@@ -57,7 +57,7 @@ export async function POST(request) {
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { bonitaCaseId: true, createdByOrgId: true },
+    select: { createdByOrgId: true },
   });
 
   if (!project) {
@@ -68,25 +68,39 @@ export async function POST(request) {
     return NextResponse.json({ error: "No puedes operar sobre este proyecto" }, { status: 403 });
   }
 
-  if (!project.bonitaCaseId) {
-    return NextResponse.json({ error: "El proyecto no tiene caseId en Bonita" }, { status: 400 });
+  if (!commentId) {
+    return NextResponse.json({ error: "commentId es requerido" }, { status: 400 });
   }
 
-  let observationPayload = null;
-  if (commentId) {
-    const comment = await prisma.comment.findUnique({
-      where: { id: commentId },
-      select: { id: true, content: true, projectId: true },
-    });
-    if (!comment || comment.projectId !== projectId) {
-      return NextResponse.json({ error: "Comentario no encontrado para este proyecto" }, { status: 404 });
-    }
-    observationPayload = {
-      observationId: comment.id,
-      projectId,
-      content: comment.content,
-    };
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { id: true, content: true, projectId: true, bonitaCaseId: true, resolved: true },
+  });
+
+  if (!comment || comment.projectId !== projectId) {
+    return NextResponse.json({ error: "Comentario no encontrado para este proyecto" }, { status: 404 });
   }
+
+  if (action === "complete") {
+    if (!comment.resolved) {
+      await prisma.comment.update({
+        where: { id: comment.id },
+        data: { resolved: true },
+      });
+    }
+    return NextResponse.json({ ok: true, resolved: true, commentId: comment.id });
+  }
+
+  const caseId = comment.bonitaCaseId ? String(comment.bonitaCaseId) : null;
+  if (!caseId) {
+    return NextResponse.json({ error: "El comentario no tiene caseId en Bonita" }, { status: 400 });
+  }
+
+  const observationPayload = {
+    observationId: comment.id,
+    projectId,
+    content: comment.content,
+  };
 
   const names =
     action === "apply"
@@ -98,26 +112,22 @@ export async function POST(request) {
   }
 
   try {
-    if (observationPayload) {
-      await setCaseVariable(project.bonitaCaseId, "observacion", observationPayload, {
-        type: "java.lang.String",
-      });
-    }
+    await setCaseVariable(caseId, "observacion", observationPayload, {
+      type: "java.lang.String",
+    });
 
-    const taskId = await completeByName(project.bonitaCaseId, names);
+    const taskId = await completeByName(caseId, names);
     if (!taskId) {
       return NextResponse.json(
         { error: "No hay tareas disponibles para esta accion. Verifica el nombre de la tarea en Bonita." },
         { status: 409 }
       );
     }
-    if (action === "complete" && commentId) {
-      await prisma.comment.update({
-        where: { id: commentId },
-        data: { resolved: true },
-      });
-    }
-    return NextResponse.json({ ok: true, taskId });
+    await prisma.comment.update({
+      where: { id: comment.id },
+      data: { resolved: true },
+    });
+    return NextResponse.json({ ok: true, taskId, caseId });
   } catch (err) {
     console.error("Error completando tarea de observacion:", err);
     return NextResponse.json(
