@@ -70,8 +70,6 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
       requestId: initialRequestId,
       quantityAvailable: "",
       unit: "",
-      amountAvailable: "",
-      currency: "",
       expectedDeliveryDate: "",
       notes: "",
     },
@@ -211,11 +209,9 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
                   Pedido original · <strong>{selectedRequest.type}</strong>
                 </div>
                 <div className={styles.requestCounter}>
-                  {selectedRequest.quantity
+                  {selectedRequest.quantity !== null && selectedRequest.quantity !== undefined
                     ? `${selectedRequest.quantity} ${selectedRequest.unit ?? ""}`.trim()
-                    : selectedRequest.amount
-                      ? `${selectedRequest.amount} ${selectedRequest.currency ?? ""}`.trim()
-                      : "Sin cantidad definida"}
+                    : "Sin cantidad definida"}
                 </div>
               </div>
               <p className={styles.pageSubtitle}>{selectedRequest.description}</p>
@@ -230,11 +226,12 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
 
           <div className={styles.grid}>
             <div className={styles.field}>
-              <label className={styles.label}>Cantidad disponible</label>
+              <label className={styles.label}>Cantidad disponible *</label>
               <input
                 type="number"
                 step="any"
                 className={styles.control}
+                required
                 {...register("quantityAvailable")}
                 placeholder="Ej: 10"
               />
@@ -242,36 +239,14 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label}>Unidad</label>
+              <label className={styles.label}>Unidad *</label>
               <input
                 className={styles.control}
+                required
                 {...register("unit")}
                 placeholder="Ej: cajas, litros"
               />
               <FieldError err={errors.unit} />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Importe disponible</label>
-              <input
-                type="number"
-                step="any"
-                className={styles.control}
-                {...register("amountAvailable")}
-                placeholder="Ej: 150000"
-              />
-              <FieldError err={errors.amountAvailable} />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Moneda</label>
-              <input
-                className={styles.control}
-                maxLength={3}
-                {...register("currency")}
-                placeholder="ARS, USD"
-              />
-              <FieldError err={errors.currency} />
             </div>
 
             <div className={styles.field}>
@@ -341,23 +316,17 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
                         <p>{request.type ?? "Sin datos"}</p>
                       </div>
                       <div>
-                        <strong>Cantidad</strong>
+                        <strong>Necesita</strong>
                         <p>
-                          {request.quantity
+                          {request.quantity !== null && request.quantity !== undefined
                             ? `${request.quantity} ${request.unit ?? ""}`.trim()
                             : "No especificada"}
                         </p>
                       </div>
-                      <div>
-                        <strong>Importe</strong>
-                        <p>
-                          {request.amount
-                            ? `${request.amount} ${request.currency ?? ""}`.trim()
-                            : "No especificado"}
-                        </p>
-                      </div>
                     </div>
+                    <div><strong>Descripción</strong>
                     <p>{request.description ?? "Sin descripción"}</p>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -23,8 +23,10 @@ function serializeProjects(projects = []) {
       updatedAt: stage.updatedAt?.toISOString() ?? null,
       requests: (stage.requests ?? []).map((request) => ({
         ...request,
-        amount: request.amount ? request.amount.toString() : null,
-        quantity: request.quantity ? request.quantity.toString() : null,
+        quantity:
+          request.quantity !== null && request.quantity !== undefined
+            ? request.quantity.toString()
+            : null,
         createdAt: request.createdAt?.toISOString() ?? null,
         updatedAt: request.updatedAt?.toISOString() ?? null,
         collaborations: (request.collaborations ?? []).map((c) => ({

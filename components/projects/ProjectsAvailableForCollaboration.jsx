@@ -66,11 +66,6 @@ export default function ProjectsAvailableForColaboration({ org_id, projects }) {
               : "No hay proyectos pendientes de colaboración por el momento."}
           </p>
         </div>
-        <div className="projects-header__actions">
-          <p className="projects-subtitle">
-            Tu organización: <strong>{org_id ?? "Sin datos"}</strong>
-          </p>
-        </div>
       </header>
 
       {hasProjects ? (

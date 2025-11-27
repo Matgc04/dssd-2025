@@ -12,8 +12,6 @@ const createEmptyRequest = () => ({
   description: "",
   quantity: undefined,
   unit: "",
-  amount: undefined,
-  currency: "",
 });
 
 export default function StageCard({ index, removeStage, canRemove }) {
@@ -75,15 +73,19 @@ export default function StageCard({ index, removeStage, canRemove }) {
 
       <div>
         <div className={styles.requestHeader}>
-          <span className={styles.tag}>Pedidos</span>
+          <span className={styles.tag}>Pedidos *</span>
           <span className={styles.requestCounter}>
             {requestFields.length} / {MAX_REQUESTS_PER_STAGE}
           </span>
         </div>
 
+        <FieldError err={stageErrors.requests?.message ? stageErrors.requests : null} />
+
         <div className={styles.requestList}>
           {requestFields.length === 0 ? (
-            <p className={styles.emptyState}>No agregaste pedidos a esta etapa aún.</p>
+            <p className={styles.emptyState}>
+              No agregaste pedidos a esta etapa aún. Sumá al menos uno para continuar.
+            </p>
           ) : (
             requestFields.map((requestField, requestIndex) => (
               <RequestRow

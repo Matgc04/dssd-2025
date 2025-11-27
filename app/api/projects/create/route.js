@@ -34,8 +34,6 @@ function mapRequestsForBonita(requests = []) {
     id: request.id,
     type: REQUEST_TYPE_MAP[request.type] || "other",
     description: request.description,
-    amount: numberOrUndefined(request.amount),
-    currency: request.currency ?? undefined,
     quantity: numberOrUndefined(request.quantity),
     unit: request.unit ?? undefined,
     order: request.order ?? undefined,

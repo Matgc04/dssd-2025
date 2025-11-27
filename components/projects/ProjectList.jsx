@@ -215,7 +215,7 @@ export default function ProjectList({ projects = [], pagination, userName }) {
                   </Link>
                   {hasPendingRequests(project) && (
                     <div className="project-card__status project-card__status--finished">
-                      ⚠️ Pedidos pendientes
+                      ⚠️ Compromisos pendientes
                     </div>
                   )}
                   {effectiveStatus === COMPLETED_STATUS && (

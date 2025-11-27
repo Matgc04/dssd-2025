@@ -16,6 +16,21 @@ function formatStatus(status) {
   return STATUS_LABELS[status] ?? status;
 }
 
+function formatDate(value) {
+  if (!value) return "Sin fecha";
+  try {
+    const date = typeof value === "string" ? new Date(value) : value;
+    if (Number.isNaN(date?.getTime?.())) return "Sin fecha";
+    return new Intl.DateTimeFormat("es-AR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "Sin fecha";
+  }
+}
+
 export default function FinishCollaborations({ project, collaborations = [] }) {
   const [finishingId, setFinishingId] = useState(null);
   const [localStatuses, setLocalStatuses] = useState({});
@@ -110,22 +125,34 @@ export default function FinishCollaborations({ project, collaborations = [] }) {
                   <dd>{formatStatus(collab.status)}</dd>
                 </div>
                 <div>
-                  <dt>Importe</dt>
-                  <dd>
-                    {collab.committedAmount
-                      ? `${collab.committedAmount} ${collab.committedCurrency ?? ""}`.trim()
-                      : "No informado"}
-                  </dd>
+                  <dt>Entrega estimada</dt>
+                  <dd>{formatDate(collab.expectedDeliveryDate)}</dd>
                 </div>
                 <div>
-                  <dt>Cantidad</dt>
+                  <dt>Cantidad y unidad</dt>
                   <dd>
                     {collab.committedQuantity
                       ? `${collab.committedQuantity} ${collab.committedUnit ?? ""}`.trim()
                       : "No informada"}
                   </dd>
                 </div>
+                <div>
+                  <dt>Compromiso creado</dt>
+                  <dd>{formatDate(collab.createdAt)}</dd>
+                </div>
               </dl>
+              <div
+                style={{
+                  borderTop: "1px solid var(--border)",
+                  paddingTop: "0.75rem",
+                  marginTop: "0.75rem",
+                }}
+              >
+                <div className="projects-eyebrow">Notas de la red</div>
+                <p className="project-card__description" style={{ margin: "0.35rem 0 0" }}>
+                  {collab.notes || "Sin notas de la red."}
+                </p>
+              </div>
               {collab.status !== "FINISHED" ? (
                 <div className="project-card__actions" style={{ display: "flex", gap: "0.5rem" }}>
                   <Link
