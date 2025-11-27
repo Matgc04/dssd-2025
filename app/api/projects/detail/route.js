@@ -90,24 +90,24 @@ function serializeCollaboration(collaboration) {
   };
 }
 
-function isProjectCompleted(project, collaborations = []) {
-  const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
-  if (requests.length === 0) return false;
+// function isProjectCompleted(project, collaborations = []) {
+//   const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
+//   if (requests.length === 0) return false;
 
-  const collabByRequestId = new Map();
-  collaborations.forEach((collab) => {
-    if (collab?.requestId) {
-      collabByRequestId.set(collab.requestId, collab);
-    }
-  });
+//   const collabByRequestId = new Map();
+//   collaborations.forEach((collab) => {
+//     if (collab?.requestId) {
+//       collabByRequestId.set(collab.requestId, collab);
+//     }
+//   });
 
-  return requests.every((req) => {
-    const collab = collabByRequestId.get(req.id);
-    if (!collab) return false;
-    const status = (collab.status ?? "").toUpperCase();
-    return status === "ACCEPTED" || status === "REJECTED";
-  });
-}
+//   return requests.every((req) => {
+//     const collab = collabByRequestId.get(req.id);
+//     if (!collab) return false;
+//     const status = (collab.status ?? "").toUpperCase();
+//     return status === "ACCEPTED" || status === "REJECTED";
+//   });
+// }
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -128,7 +128,7 @@ export async function GET(request) {
     return NextResponse.json({ error: "Sesión expirada" }, { status: 401 });
   }
 
-  if (session.roleName !== ROLES.ONG_ORIGINANTE) {
+  if (session.roleName !== ROLES.ONG_ORIGINANTE && session.roleName !== ROLES.CONSEJO_DIRECTIVO) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 

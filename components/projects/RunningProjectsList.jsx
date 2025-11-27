@@ -4,6 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 
+const STATUS_LABELS = {
+  DRAFT: "Borrador",
+  STARTED: "Iniciado",
+  COMPLETED: "Completo",
+  RUNNING: "En ejecución",
+  FINISHED: "Finalizado",
+  ERROR: "Error",
+};
+
+function formatStatus(value) {
+  return STATUS_LABELS[value] || value || "Desconocido";
+}
+
 function formatDate(value) {
   if (!value) return "Sin fecha";
   try {
@@ -22,34 +35,45 @@ export default function RunningProjectsList({ projects = [] }) {
   const [comments, setComments] = useState({});
   const [pendingId, setPendingId] = useState(null);
 
-  const handleSend = async (project) => {
-    const message = comments[project.id]?.trim();
-    if (!message) {
-      toast.error("Escribí un comentario antes de enviar.");
+  const hasProjects = Array.isArray(projects) && projects.length > 0;
+
+  const handleSend = async (project, hasObservations = true) => {
+    const message = (comments[project.id] ?? "").trim();
+    if (hasObservations && !message) {
+      toast.error("Escribí una observación o marcá 'Sin observaciones'.");
       return;
     }
     setPendingId(project.id);
-    const toastId = toast.loading("Enviando comentario a Bonita...");
+    const toastId = toast.loading(
+      hasObservations ? "Enviando observación a Bonita..." : "Marcando sin observaciones..."
+    );
     try {
       const res = await fetch("/api/projects/comment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: project.id, comment: message }),
+        body: JSON.stringify({
+          projectId: project.id,
+          comment: hasObservations ? message : "",
+          proyecto: project.name,
+          hayProjectos: hasProjects,
+          tieneObservaciones: hasObservations && Boolean(message),
+        }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(payload?.error || "No se pudo guardar el comentario.");
       }
-      toast.success("Comentario enviado.", { id: toastId });
+      toast.success(
+        hasObservations ? "Observación enviada." : "Caso marcado sin observaciones.",
+        { id: toastId }
+      );
       setComments((prev) => ({ ...prev, [project.id]: "" }));
     } catch (err) {
-      toast.error(err.message || "Error enviando comentario.", { id: toastId });
+      toast.error(err.message || "Error enviando observación.", { id: toastId });
     } finally {
       setPendingId(null);
     }
   };
-
-  const hasProjects = Array.isArray(projects) && projects.length > 0;
 
   return (
     <section className="projects-shell">
@@ -58,8 +82,9 @@ export default function RunningProjectsList({ projects = [] }) {
           <p className="projects-eyebrow">Consejo Directivo</p>
           <h1 className="projects-title">Proyectos en ejecución</h1>
           <p className="projects-subtitle">
-            Dejá comentarios sobre los proyectos activos. Los comentarios se guardan en Bonita
-            (variable de caso <code>comentariosConsejo</code>).
+            Dejá observaciones sobre los proyectos activos. Bonita recibe las variables del proceso
+            (<code>hayProjectos</code>, <code>proyecto</code>, <code>tieneObservaciones</code> y{" "}
+            <code>observacion</code>) y sus conectores se encargan del resto.
           </p>
         </div>
       </header>
@@ -84,7 +109,7 @@ export default function RunningProjectsList({ projects = [] }) {
                 </div>
                 <div>
                   <dt>Estado</dt>
-                  <dd>{project.status || "RUNNING"}</dd>
+                  <dd>{formatStatus(project.status)}</dd>
                 </div>
                 <div>
                   <dt>País</dt>
@@ -120,13 +145,21 @@ export default function RunningProjectsList({ projects = [] }) {
                   <button
                     type="button"
                     className="auth-submit"
-                    onClick={() => handleSend(project)}
+                    onClick={() => handleSend(project, true)}
                     disabled={pendingId === project.id}
                   >
-                    {pendingId === project.id ? "Enviando..." : "Enviar a Bonita"}
+                    {pendingId === project.id ? "Enviando..." : "Enviar observación"}
+                  </button>
+                  <button
+                    type="button"
+                    className="project-card__link"
+                    onClick={() => handleSend(project, false)}
+                    disabled={pendingId === project.id}
+                  >
+                    {pendingId === project.id ? "Procesando..." : "Sin observaciones"}
                   </button>
                   <Link href={`/projects/${project.id}`} className="project-card__link">
-                    Ver detalle
+                    TODO: Ver detalle
                   </Link>
                 </div>
               </div>
@@ -137,7 +170,7 @@ export default function RunningProjectsList({ projects = [] }) {
         <div className="projects-empty">
           <div className="projects-empty__card">
             <h2>No hay proyectos en ejecución</h2>
-            <p>Cuando haya proyectos RUNNING vas a poder comentarlos desde aquí.</p>
+            <p>Cuando haya proyectos en ejecución vas a poder comentarlos desde aquí.</p>
           </div>
         </div>
       )}

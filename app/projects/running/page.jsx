@@ -20,12 +20,16 @@ export default async function RunningProjectsPage() {
       orderDirection: "desc",
       limit: 100,
     });
-    projects = (result?.projects ?? []).map((project) => ({
+    const rawProjects = result?.projects ?? [];
+
+    // Convierte Decimal a string y Date a string usando toJSON de Prisma
+    projects = JSON.parse(JSON.stringify(rawProjects)).map((project) => ({
       ...project,
-      startDate: project.startDate?.toISOString() ?? null,
-      endDate: project.endDate?.toISOString() ?? null,
-      createdAt: project.createdAt?.toISOString() ?? null,
+      startDate: project.startDate ?? null,
+      endDate: project.endDate ?? null,
+      createdAt: project.createdAt ?? null,
     }));
+
   } catch (err) {
     console.error("Error en running projects:", err);
   }
