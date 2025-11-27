@@ -10,6 +10,35 @@ const BONITA =
 const CLOUD_URL = process.env.CLOUD_URL || "http://localhost:8000"; 
 //en el dockerfile esta el 8080 pero en localp ara que no se choque con bonita le pueden cambiar a 8000 cuando hacen el docker run
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchCloudWithRetry(url, options, { retries = 2, delayMs = 800, timeoutMs = 8000 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) return res;
+      const body = await res.text().catch(() => "");
+      const err = new Error(`Cloud login failed with status ${res.status}`);
+      err.status = res.status;
+      err.body = body;
+      lastError = err;
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err;
+    }
+    if (attempt < retries) {
+      await sleep(delayMs * (attempt + 1));
+    }
+  }
+  throw lastError || new Error("Cloud login failed");
+}
+
 export async function POST(request) {
   let payload;
   try {
@@ -76,21 +105,24 @@ export async function POST(request) {
 
   console.log(`Usuario ${resolvedUserName} (${userId}) con rol ${roleName} (${roleId}) autenticado en bonita.`);
 
-  //Nos logueamos en el cloud para obtener el token JWT
-  const res = await fetch(CLOUD_URL + "/api/v1/auth/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      accept: "application/json",
-    },
-    body: JSON.stringify({ username, password }),
-  });
-
-  if (!res.ok) {
-    // opcional: loguear el body para ver el error del backend
-    const errorBody = await res.text();
-    console.error("Login en cloud fallido:", errorBody);
-    throw new Error("Login fallido");
+  //Nos logueamos en el cloud para obtener el token JWT (con reintentos ante timeouts)
+  let res;
+  try {
+    res = await fetchCloudWithRetry(CLOUD_URL + "/api/v1/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({ username, password }),
+    });
+  } catch (err) {
+    console.error("Login en cloud fallido tras reintentos:", err?.body || err?.message || err);
+    const status = err?.status || 502;
+    return NextResponse.json(
+      { error: "No se pudo conectar con el servicio cloud para autenticación" },
+      { status }
+    );
   }
 
   const data = await res.json();

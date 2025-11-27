@@ -14,7 +14,7 @@ const STATUS_LABELS = {
 };
 
 function formatStatus(value) {
-  return STATUS_LABELS[value] || value || "Desconocido";
+  return STATUS_LABELS[value] || value || "Sin estado";
 }
 
 function formatDate(value) {
@@ -55,7 +55,7 @@ export default function RunningProjectsList({ projects = [] }) {
           projectId: project.id,
           comment: hasObservations ? message : "",
           proyecto: project.name,
-          hayProjectos: hasProjects,
+          hayProyectos: hasProjects,
           tieneObservaciones: hasObservations && Boolean(message),
         }),
       });
@@ -76,23 +76,42 @@ export default function RunningProjectsList({ projects = [] }) {
   };
 
   return (
-    <section className="projects-shell">
+    <section className="projects-shell" style={{ width: "100%" }}>
       <header className="projects-header">
         <div className="projects-header__copy">
           <p className="projects-eyebrow">Consejo Directivo</p>
           <h1 className="projects-title">Proyectos en ejecución</h1>
           <p className="projects-subtitle">
             Dejá observaciones sobre los proyectos activos. Bonita recibe las variables del proceso
-            (<code>hayProjectos</code>, <code>proyecto</code>, <code>tieneObservaciones</code> y{" "}
+            (<code>hayProyectos</code>, <code>proyecto</code>, <code>tieneObservaciones</code> y{" "}
             <code>observacion</code>) y sus conectores se encargan del resto.
           </p>
         </div>
       </header>
 
       {hasProjects ? (
-        <ul className="projects-grid">
+        <ul
+          className="projects-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr", // una columna para ocupar todo el ancho
+            gap: "1rem",
+            width: "100%",
+            margin: 0,
+            padding: 0,
+            listStyle: "none",
+          }}
+        >
           {projects.map((project) => (
-            <li key={project.id} className="project-card" style={{ display: "grid", gap: "0.75rem" }}>
+            <li
+              key={project.id}
+              className="project-card"
+              style={{
+                display: "grid",
+                gap: "0.75rem",
+                width: "100%", // asegurar que cada tarjeta use todo el ancho disponible
+              }}
+            >
               <div className="project-card__body">
                 <p className="projects-eyebrow">Case ID: {project.bonitaCaseId || "N/A"}</p>
                 <h2 className="project-card__title">{project.name}</h2>
@@ -141,7 +160,10 @@ export default function RunningProjectsList({ projects = [] }) {
                   }}
                   placeholder="Dejá indicaciones o comentarios para el proceso en Bonita..."
                 />
-                <div className="project-card__actions" style={{ justifyContent: "flex-start" }}>
+                <div
+                  className="project-card__actions"
+                  style={{ justifyContent: "flex-start", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
+                >
                   <button
                     type="button"
                     className="auth-submit"
