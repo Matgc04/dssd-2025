@@ -679,95 +679,197 @@ def termino_colaboracion():
     
     return jsonify({"msg": "Colaboración completada"}), 200
 
-@projects_api_bp.route("/ponerObservacion", methods=["POST"])
+@projects_api_bp.route("/hacerObservacion", methods=["POST"])
 @jwt_required()
-def poner_observacion():
+def hacer_observacion():
     """
-    Poner una observación en un proyecto
+    Crear una observación en un proyecto
+    ---
+    tags:
+      - Proyectos ONGs
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [observationId, projectId, content]
+          properties:
+            observationId:
+              type: string
+              description: Identificador de la observación provisto por la nube.
+            projectId:
+              type: string
+              description: Identificador del proyecto.
+            content:
+              type: string
+              description: Contenido de la observación a registrar.
+    responses:
+      201:
+        description: Observación creada exitosamente.
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+            observation:
+              type: object
+              properties:
+                id:
+                  type: string
+                projectId:
+                  type: string
+                content:
+                  type: string
+                isCompleted:
+                  type: boolean
+                createdAt:
+                  type: string
+                  format: date-time
+                updatedAt:
+                  type: string
+                  format: date-time
+      400:
+        description: Datos faltantes o inválidos.
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+      401:
+        description: Token JWT inválido o faltante.
+      403:
+        description: El usuario no posee el rol autorizado para crear observaciones.
+      404:
+        description: Proyecto no encontrado.
     """
     payload = request.get_json(silent=True) or {}
+
     claims = get_jwt()
     role = claims.get("role")
     if role not in (UserRole.CONSEJO_DIRECTIVO.value, UserRole.BONITA.value):
         return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
 
-    project_id_raw = payload.get("project_id") or payload.get("projectId")
-    observacion = payload.get("observacion")
-    if isinstance(observacion, str):
-        observacion = observacion.strip()
-    if not project_id_raw or not observacion:
-        return jsonify({"msg": "Faltan datos obligatorios"}), 400
+    observation_id = payload.get("observationId") or payload.get("observation_id")
+    project_id = payload.get("projectId") or payload.get("project_id")
+    content = payload.get("content")
 
-    project_id = str(project_id_raw).strip()
-    if not project_id:
-        return jsonify({"msg": "project_id no puede ser vacío"}), 400
+    if isinstance(observation_id, str):
+        observation_id = observation_id.strip()
+    if isinstance(project_id, str):
+        project_id = project_id.strip()
+    if isinstance(content, str):
+        content = content.strip()
+
+    if not observation_id or not project_id or not content:
+        return jsonify({"msg": "observationId, projectId y content son obligatorios"}), 400
+
     repo = ProjectRepository()
     try:
-        project = repo.set_project_observation(
-            project_id,
-            observaciones=observacion
+        observation = repo.create_observation(
+            observation_id=observation_id,
+            project_id=str(project_id),
+            content=content,
+            is_completed=False,
         )
     except LookupError:
+        print(f"Proyecto con id {project_id} no encontrado al crear observación")
         return jsonify({"msg": "Proyecto no encontrado"}), 404
+    except ValueError as exc:
+        print(f"Error al crear observación: {exc}")
+        return jsonify({"msg": str(exc)}), 400
 
     return (
         jsonify(
             {
-                "msg": "Observación creada exitosamente",
-                "project": _serialize_project(project),
+                "msg": "Observación creada",
+                "observation": _serialize_observation(observation),
             }
         ),
         201,
     )
 
-@projects_api_bp.route("/observacionTerminada", methods=["POST"])
+@projects_api_bp.route("/completarObservacion", methods=["PATCH"])
 @jwt_required()
-def observacion_terminada():
-    """Marcar una observación como terminada."""
+def completar_observacion():
+    """
+    Marcar una observación como completada
+    ---
+    tags:
+      - Proyectos ONGs
+    security:
+      - BearerAuth: []
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [observationId]
+          properties:
+            observationId:
+              type: string
+              description: Identificador de la observación a completar.
+    responses:
+      200:
+        description: Observación marcada como completada
+      400:
+        description: Datos faltantes o inválidos
+      401:
+        description: Token JWT inválido o faltante
+      403:
+        description: El usuario no posee el rol autorizado para completar observaciones
+      404:
+        description: Observación no encontrada
+    """
     payload = request.get_json(silent=True) or {}
-    
+
     claims = get_jwt()
     role = claims.get("role")
-    if role not in (UserRole.CONSEJO_DIRECTIVO.value, UserRole.BONITA.value):
-        return jsonify({"msg": "Rol Consejo Directivo requerido"}), 403
+    if role not in (UserRole.ONG_ORIGINANTE.value, UserRole.BONITA.value):
+        return jsonify({"msg": "Rol ONG originante requerido"}), 403
 
-    observacion_id = payload.get("observacion_id")
-    project_id_raw = payload.get("project_id") or payload.get("projectId")
-    if not observacion_id or not project_id_raw:
-        return jsonify({"msg": "Faltan datos obligatorios"}), 400
+    observation_id = payload.get("observationId") or payload.get("observation_id")
+    if isinstance(observation_id, str):
+        observation_id = observation_id.strip()
 
-    project_id = str(project_id_raw).strip()
-    if not project_id:
-        return jsonify({"msg": "project_id no puede ser vacío"}), 400
+    if not observation_id:
+        return jsonify({"msg": "observationId es obligatorio"}), 400
 
     repo = ProjectRepository()
-    project = repo.get_project(project_id)
-    if not project:
-        return jsonify({"msg": "Proyecto no encontrado"}), 404
-    if not project.observaciones:
-        return (
-            jsonify(
-                {
-                    "msg": "El proyecto no tiene observaciones registradas para marcar como terminadas"
-                }
-            ),
-            409,
-        )
-
-    #project.estado_observaciones = ObservationStatus.TERMINADA
-    repo.session.add(project)
-    repo.session.commit()
-    repo.session.refresh(project)
+    try:
+        observation = repo.complete_observation(str(observation_id))
+    except ValueError as exc:
+        return jsonify({"msg": str(exc)}), 400
+    except LookupError:
+        print(f"Observación con id {observation_id} no encontrada al completar")
+        return jsonify({"msg": "Observación no encontrada"}), 404
 
     return (
         jsonify(
             {
-                "msg": "Observación marcada como terminada",
-                "project": _serialize_project(project),
+                "msg": "Observación completada",
+                "observation": _serialize_observation(observation),
             }
         ),
         200,
     )
+
+def _serialize_observation(observation):
+    return {
+        "id": observation.id,
+        "projectId": observation.project_id,
+        "content": observation.content,
+        "isCompleted": observation.is_completed,
+        "createdAt": observation.created_at.isoformat() if observation.created_at else None,
+        "updatedAt": observation.updated_at.isoformat() if observation.updated_at else None,
+    }
 
 def _serialize_project(project):
     return {

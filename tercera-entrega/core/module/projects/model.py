@@ -47,6 +47,12 @@ class Project(db.Model):
         order_by="Stage.order",
     )
 
+    observation: Mapped["Observation"] = relationship(
+        "Observation",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
 
 class Stage(db.Model):
     __tablename__ = "project_stages"
@@ -139,3 +145,22 @@ class StageRequestCollaboration(db.Model):
     )
 
     stage_request = db.relationship("StageRequest", back_populates="collaborations")
+
+
+class Observation(db.Model):
+    __tablename__ = "project_observations"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    project_id = db.Column(
+        db.String(36),
+        db.ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    is_completed = db.Column(db.Boolean, nullable=False, default=False)
+    content = db.Column(db.String(1000), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=func.now())
+    updated_at = db.Column(
+        db.DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    
+    project: Mapped["Project"] = relationship("Project", back_populates="observation")

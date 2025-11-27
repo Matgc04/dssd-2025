@@ -16,7 +16,8 @@ from .model import (
     StageRequest,
     StageRequestCollaboration,
     StatusType,
-    CollaborationStatusType
+    CollaborationStatusType,
+    Observation,
 )
 
 
@@ -315,6 +316,58 @@ class ProjectRepository:
         self.session.commit()
 
         return collaboration
+
+    # -- Observations ------------------------------------------------------------
+    def create_observation(
+        self,
+        *,
+        observation_id: str,
+        project_id: str,
+        content: str,
+        is_completed: bool = False,
+    ) -> Observation:
+        if not observation_id:
+            raise ValueError("observation_id is required")
+        if not project_id:
+            raise ValueError("project_id is required")
+        if content is None:
+            raise ValueError("content is required")
+        observation_id_normalized = str(observation_id).strip()
+        if not observation_id_normalized:
+            raise ValueError("observation_id is required")
+        content_normalized = content.strip()
+        if not content_normalized:
+            raise ValueError("content is required")
+
+        project = self.get_project(str(project_id))
+        if project is None:
+            raise LookupError("Proyecto no encontrado")
+
+        observation = Observation(
+            id=observation_id_normalized,
+            project_id=str(project_id),
+            content=content_normalized,
+            is_completed=bool(is_completed),
+        )
+        self.session.add(observation)
+        self.session.commit()
+        self.session.refresh(observation)
+        return observation
+
+    def complete_observation(self, observation_id: str) -> Observation:
+        if not observation_id:
+            raise ValueError("observation_id is required")
+
+        observation = self.session.get(Observation, str(observation_id))
+        if observation is None:
+            raise LookupError("Observación no encontrada")
+
+        observation.is_completed = True
+        self.session.add(observation)
+        self.session.commit()
+        self.session.refresh(observation)
+
+        return observation
 
     def set_collaboration_acceptance(
         self,
