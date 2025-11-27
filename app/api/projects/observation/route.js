@@ -116,6 +116,13 @@ export async function POST(request) {
       type: "java.lang.String",
     });
 
+    const jsonId = {
+        observationId: comment.id,
+    };
+    await setCaseVariable(caseId, "idObservacion", jsonId, {
+      type: "java.lang.String",
+    });
+
     const taskId = await completeByName(caseId, names);
     if (!taskId) {
       return NextResponse.json(
