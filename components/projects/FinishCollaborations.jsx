@@ -11,23 +11,9 @@ const STATUS_LABELS = {
   FINISHED: "Finalizado",
 };
 
-const PROCESS_STATUS_LABELS = {
-  DRAFT: "Borrador",
-  STARTED: "Iniciado",
-  COMPLETED: "Completo",
-  RUNNING: "En ejecución",
-  FINISHED: "Finalizado",
-  ERROR: "Error",
-};
-
 function formatStatus(status) {
   if (!status) return "Sin estado";
   return STATUS_LABELS[status] ?? status;
-}
-
-function formatProcessStatus(status) {
-  if (!status) return "Sin estado";
-  return PROCESS_STATUS_LABELS[status] ?? status;
 }
 
 export default function FinishCollaborations({ project, collaborations = [] }) {
@@ -77,7 +63,12 @@ export default function FinishCollaborations({ project, collaborations = [] }) {
     status: localStatuses[collab.id] ?? collab.status,
   }));
 
-  const hasCollaborations = resolvedCollaborations.length > 0;
+  const visibleCollaborations = resolvedCollaborations.filter((collab) => {
+    const status = (collab.status ?? "").toUpperCase();
+    return status === "ACCEPTED" || status === "FINISHED";
+  });
+
+  const hasCollaborations = visibleCollaborations.length > 0;
 
   return (
     <section className="projects-shell">
@@ -86,7 +77,7 @@ export default function FinishCollaborations({ project, collaborations = [] }) {
           <p className="projects-eyebrow">Compromisos</p>
           <h1 className="projects-title">Finalizar colaboraciones</h1>
           <p className="projects-subtitle">
-            Proyecto: {project.name} · Estado actual: {formatProcessStatus(project.status)}
+            Proyecto: {project.name}
           </p>
         </div>
         <Link href="/projects" className="auth-submit">
@@ -96,7 +87,7 @@ export default function FinishCollaborations({ project, collaborations = [] }) {
 
       {hasCollaborations ? (
         <ul className="projects-grid">
-          {resolvedCollaborations.map((collab) => (
+          {visibleCollaborations.map((collab) => (
             <li
               key={collab.id}
               className={`project-card${

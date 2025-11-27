@@ -10,7 +10,7 @@ const taskName = "Marcar proyecto como finalizado";
 
 async function hasFinishedCollaborations(projectId) {
   const collaborations = await prisma.collaboration.findMany({
-    where: { projectId },
+    where: { projectId, status: { not: "REJECTED" } },
     select: { status: true },
   });
   if (collaborations.length === 0) return false;

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import FieldError from "@/components/projects/FieldError";
 import styles from "@/components/projects/FormStyles.module.css";
 import { collaborationRequestSchema } from "@/lib/validation/collaborationRequestSchema";
@@ -51,6 +52,7 @@ function formatDate(value) {
 }
 
 export default function CollaborateProjectDetail({ projectId, stagesPayload, fetchError }) {
+  const router = useRouter();
   const stages = useMemo(() => normalizeStages(stagesPayload), [stagesPayload]);
   const initialStageId = stages[0]?.id ?? "";
   const initialRequestId = stages[0]?.requests?.[0]?.id ?? "";
@@ -115,6 +117,7 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
       }
 
       toast.success("Gracias, registramos tu colaboración.");
+      router.push("/projects/colaborate");
     } catch (error) {
       console.error("Error enviando colaboración:", error);
       toast.error(error.message || "No pudimos registrar tu colaboración.");

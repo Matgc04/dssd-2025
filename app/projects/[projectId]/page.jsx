@@ -56,7 +56,7 @@ export default async function ProjectDetailPage({ params }) {
           <h1 className="projects-title">Detalle del proyecto</h1>
           <p className="projects-subtitle">
             {projectId
-              ? `Estás viendo el proyecto ${projectId}.`
+              ? `Estás viendo el proyecto ${payload?.project?.name ?? projectId}.`
               : "Falta el identificador del proyecto, volvé al listado para elegir uno."}
           </p>
         </div>

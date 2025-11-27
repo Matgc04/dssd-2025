@@ -14,7 +14,14 @@ const STATUS_LABELS = {
   ERROR: "Error",
 };
 
-const SUCCESS_COLLAB_STATUSES = new Set(["ACCEPTED", "FINISHED"]);
+const STATUS_ICONS = {
+  DRAFT: "📝",
+  STARTED: "🚀",
+  COMPLETED: "✅",
+  RUNNING: "⚙️",
+  FINISHED: "🏁",
+  ERROR: "⚠️",
+};
 const RUNNING_STATUS = "RUNNING";
 const COMPLETED_STATUS = "COMPLETED";
 const FINISHED_STATUS = "FINISHED";
@@ -48,17 +55,6 @@ function getRequestsCount(project) {
   );
 }
 
-function allRequestsCommitted(project) {
-  const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
-  if (requests.length === 0) return false;
-
-  return requests.every((req) =>
-    (req?.collaborations ?? []).some((col) =>
-      SUCCESS_COLLAB_STATUSES.has((col?.status ?? "").toUpperCase())
-    )
-  );
-}
-
 function formatStatus(status) {
   if (!status) return "Sin estado";
   return STATUS_LABELS[status] ?? status;
@@ -72,9 +68,27 @@ function getStatusClass(status) {
 function allCollaborationsFinished(project) {
   const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
   if (requests.length === 0) return false;
-  const allCollabs = requests.flatMap((req) => req?.collaborations ?? []);
+  const allCollabs = requests
+    .flatMap((req) => req?.collaborations ?? [])
+    .filter((col) => {
+      const status = (col?.status ?? "").toUpperCase();
+      return status === "ACCEPTED" || status === FINISHED_STATUS;
+    });
+
   if (allCollabs.length === 0) return false;
   return allCollabs.every((col) => (col?.status ?? "").toUpperCase() === FINISHED_STATUS);
+}
+
+function hasPendingRequests(project) {
+  const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
+  if (requests.length === 0) return false;
+  return requests.some((req) => {
+    const pendingCollab = (req?.collaborations ?? []).find((col) => {
+      const status = (col?.status ?? "").toUpperCase();
+      return status === "PENDING";
+    });
+    return !!pendingCollab;
+  });
 }
 
 export default function ProjectList({ projects = [], pagination, userName }) {
@@ -165,10 +179,10 @@ export default function ProjectList({ projects = [], pagination, userName }) {
                 className={`project-card${isFinished ? " project-card--finished" : ""}`}
               >
                 <div className={`project-card__status ${getStatusClass(effectiveStatus)}`}>
+                  <span style={{ marginRight: "0.35rem" }}>
+                    {STATUS_ICONS[effectiveStatus] ?? "•"}
+                  </span>
                   {formatStatus(effectiveStatus)}
-                  {effectiveStatus === COMPLETED_STATUS && (
-                    <span style={{ color: "#0bc40bff" }}> ✓</span>
-                  )}
                 </div>
                 <div className="project-card__body">
                   <h2 className="project-card__title">{project.name}</h2>
@@ -199,6 +213,11 @@ export default function ProjectList({ projects = [], pagination, userName }) {
                   <Link href={`/projects/${project.id}`} className="project-card__link">
                     Ver detalle
                   </Link>
+                  {hasPendingRequests(project) && (
+                    <div className="project-card__status project-card__status--finished">
+                      ⚠️ Pedidos pendientes
+                    </div>
+                  )}
                   {effectiveStatus === COMPLETED_STATUS && (
                     <Link
                       href="#"
