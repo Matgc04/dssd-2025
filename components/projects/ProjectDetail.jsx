@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { ROLES } from "@/lib/constants";
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
@@ -55,11 +56,13 @@ function formatProcessStatus(status){
   return PROCESS_STATUS_LABELS[status] ?? status ?? "Sin estado";
 }
 
-export default function ProjectDetail({ project, collaborations = [], fetchError }) {
+export default function ProjectDetail({ project, collaborations = [], fetchError, roleName }) {
   const [pendingId, setPendingId] = useState(null);
   const [decisions, setDecisions] = useState({});
+  const [obsActionId, setObsActionId] = useState(null);
   const router = useRouter();
   const comments = Array.isArray(project?.comments) ? project.comments : [];
+  const isOriginante = roleName === ROLES.ONG_ORIGINANTE;
 
   const stages = project?.stages ?? [];
   const hasStages = stages.length > 0;
@@ -105,6 +108,32 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
       toast.error(error.message || "No pudimos registrar tu respuesta.");
     } finally {
       setPendingId(null);
+    }
+  };
+
+  const handleObservationAction = async (commentId, action) => {
+    if (!project?.id || !commentId) return;
+    setObsActionId(`${action}-${commentId}`);
+    const toastId = toast.loading(
+      action === "apply"
+        ? "Marcando 'Aplicar correcciones'..."
+        : "Marcando 'Observacion completada'..."
+    );
+    try {
+      const res = await fetch("/api/projects/observation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: project.id, commentId, action }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(payload?.error || "No se pudo completar la tarea en Bonita.");
+      }
+      toast.success("Accion registrada en Bonita.", { id: toastId });
+    } catch (err) {
+      toast.error(err.message || "Error al completar la tarea.", { id: toastId });
+    } finally {
+      setObsActionId(null);
     }
   };
 
@@ -159,22 +188,22 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
       </div>
 
       {comments.length > 0 ? (
-        <div className="project-card">
-          <div className="project-card__body">
-            <p className="projects-eyebrow">Observaciones</p>
-            <h3 className="project-card__title">Comentarios del consejo directivo</h3>
-            <p className="project-card__description">
+      <div className="project-card">
+        <div className="project-card__body">
+          <p className="projects-eyebrow">Observaciones</p>
+          <h3 className="project-card__title">Comentarios del consejo directivo</h3>
+          <p className="project-card__description">
               Observaciones cargadas por el consejo directivo.
-            </p>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gap: "0.75rem",
-              padding: "1rem",
-            }}
-          >
-            {comments.map((item) => (
+          </p>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gap: "0.75rem",
+            padding: "1rem",
+          }}
+        >
+          {comments.map((item) => (
               <div
                 key={item.id}
                 style={{
@@ -182,18 +211,39 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
                   borderRadius: "10px",
                   padding: "0.75rem",
                   display: "grid",
-                  gap: "0.35rem",
-                }}
-              >
-                <div style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                  {item.createdAt ? formatDate(item.createdAt) : ""}
-                </div>
-                <div>{item.content}</div>
-              </div>
-            ))}
+              gap: "0.35rem",
+            }}
+          >
+            <div style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              {item.createdAt ? formatDate(item.createdAt) : ""}
+            </div>
+            <div>{item.content}</div>
+                {isOriginante ? (
+                  <div className="project-card__actions" style={{ justifyContent: "flex-start", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      className="auth-submit"
+                      onClick={() => handleObservationAction(item.id, "apply")}
+                      disabled={obsActionId === `apply-${item.id}`}
+                    >
+                      {obsActionId === `apply-${item.id}` ? "Marcando..." : "Aplicar correcciones"}
+                    </button>
+                    <button
+                      type="button"
+                      className="auth-submit"
+                      style={{ background: "var(--success)" }}
+                      onClick={() => handleObservationAction(item.id, "complete")}
+                      disabled={obsActionId === `complete-${item.id}`}
+                    >
+                      {obsActionId === `complete-${item.id}` ? "Marcando..." : "Completar observacion"}
+                    </button>
+                  </div>
+                ) : null}
           </div>
-        </div>
-      ) : null}
+        ))}
+      </div>
+    </div>
+  ) : null}
 
       <div className="project-card">
         <div className="project-card__body">

@@ -69,6 +69,7 @@ export default async function ProjectDetailPage({ params }) {
         project={payload?.project}
         collaborations={payload?.collaborations}
         fetchError={fetchError}
+        roleName={session.roleName}
       />
     </section>
   );

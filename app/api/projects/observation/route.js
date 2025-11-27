@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { searchActivityByCaseId, completeActivity } from "@/lib/bonita";
 
 const TASK_NAMES = {
-  APPLY: ["Aplicar correcciones (máx. 5 días)Aplicar correcciones (máx. 5 días)", "Aplicar correcciones (max. 5 dias)", "Aplicar correcciones"],
+  APPLY: ["Aplicar correcciones (max. 5 dias)", "Aplicar correcciones (máx. 5 días)", "Aplicar correcciones"],
   COMPLETE: ["Observacion completada", "Observación completada"],
 };
 
@@ -51,6 +51,7 @@ export async function POST(request) {
 
   const projectId = payload?.projectId;
   const action = payload?.action;
+  const commentId = payload?.commentId;
   if (!projectId || !action) {
     return NextResponse.json({ error: "projectId y action son requeridos" }, { status: 400 });
   }
@@ -72,6 +73,22 @@ export async function POST(request) {
     return NextResponse.json({ error: "El proyecto no tiene caseId en Bonita" }, { status: 400 });
   }
 
+  let observationPayload = null;
+  if (commentId) {
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { id: true, content: true, projectId: true },
+    });
+    if (!comment || comment.projectId !== projectId) {
+      return NextResponse.json({ error: "Comentario no encontrado para este proyecto" }, { status: 404 });
+    }
+    observationPayload = {
+      observationId: comment.id,
+      projectId,
+      content: comment.content,
+    };
+  }
+
   const names =
     action === "apply"
       ? TASK_NAMES.APPLY
@@ -84,6 +101,12 @@ export async function POST(request) {
   }
 
   try {
+    if (observationPayload) {
+      await setCaseVariable(project.bonitaCaseId, "observacion", observationPayload, {
+        type: "java.lang.String",
+      });
+    }
+
     const taskId = await completeByName(project.bonitaCaseId, names);
     if (!taskId) {
       return NextResponse.json(

@@ -5,8 +5,8 @@ import prisma from "@/lib/prisma";
 import { setCaseVariable, searchActivityByCaseId, completeActivity } from "@/lib/bonita";
 
 const TASKS = {
-  ANALYZE: "Analizar proyecto en ejecucion",
-  LOAD_OBS: "Cargar observaciones y mejoras",
+  ANALYZE: ["Analizar proyecto en ejecucion", "Analizar proyecto en ejecución"],
+  LOAD_OBS: ["Cargar observaciones y mejoras", "Cargar observacion", "Subir observacion"],
 };
 
 function normalizeBoolean(value, fallback = false) {
@@ -20,6 +20,14 @@ function normalizeBoolean(value, fallback = false) {
   return fallback;
 }
 
+function normalizeText(value) {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 async function completeTaskIfReady(caseId, names, contractValues = {}) {
   const tasks = await searchActivityByCaseId(caseId, {
     state: "ready",
@@ -30,9 +38,17 @@ async function completeTaskIfReady(caseId, names, contractValues = {}) {
 
   if (!tasks?.length) return null;
 
-  const target = tasks.find((task) =>
-    names.some((name) => task.displayName === name || task.name === name)
-  );
+  const normalizedNames = names.map(normalizeText);
+
+  let target =
+    tasks.find((task) => {
+      const taskName = normalizeText(task.displayName || task.name);
+      return normalizedNames.some((name) => taskName === name || taskName.includes(name));
+    }) || null;
+
+  if (!target) {
+    target = tasks[0];
+  }
 
   if (!target) return null;
 
@@ -196,7 +212,7 @@ export async function POST(request) {
     }
 
     try {
-      const analyzeTask = await completeTaskIfReady(normalizedCaseId, [TASKS.ANALYZE], {
+      const analyzeTask = await completeTaskIfReady(normalizedCaseId, TASKS.ANALYZE, {
         tieneObservaciones,
         proyecto: projectName,
         hayProyectos,
@@ -205,7 +221,7 @@ export async function POST(request) {
 
       if (tieneObservaciones) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        const loadObsTask = await completeTaskIfReady(normalizedCaseId, [TASKS.LOAD_OBS], {
+        const loadObsTask = await completeTaskIfReady(normalizedCaseId, TASKS.LOAD_OBS, {
           observacion,
           proyecto: projectName,
         });
