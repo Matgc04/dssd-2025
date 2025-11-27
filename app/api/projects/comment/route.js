@@ -40,15 +40,11 @@ async function completeTaskIfReady(caseId, names, contractValues = {}) {
 
   const normalizedNames = names.map(normalizeText);
 
-  let target =
+  const target =
     tasks.find((task) => {
       const taskName = normalizeText(task.displayName || task.name);
       return normalizedNames.some((name) => taskName === name || taskName.includes(name));
     }) || null;
-
-  if (!target) {
-    target = tasks[0];
-  }
 
   if (!target) return null;
 
@@ -76,6 +72,19 @@ export async function GET(request) {
   }
 
   try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { createdByOrgId: true },
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
+    if (isOriginante && project.createdByOrgId !== session.userId) {
+      return NextResponse.json({ error: "No puedes ver las observaciones de este proyecto" }, { status: 403 });
+    }
+
     const comments = await prisma.comment.findMany({
       where: { projectId },
       orderBy: { createdAt: "desc" },
@@ -83,6 +92,7 @@ export async function GET(request) {
         id: true,
         content: true,
         resolved: true,
+        bonitaCaseId: true,
         createdAt: true,
       },
     });
@@ -127,10 +137,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "El proyecto no esta en ejecucion" }, { status: 409 });
   }
 
-  const comment = (payload?.comment ?? payload?.observacion ?? "").trim();
-  if (!comment) {
-    return NextResponse.json({ error: "La observacion no puede estar vacia" }, { status: 400 });
-  }
+  const rawComment = (payload?.comment ?? payload?.observacion ?? "").trim();
 
   const projectName =
     (payload?.proyecto ??
@@ -142,10 +149,14 @@ export async function POST(request) {
   const hayProyectos = normalizeBoolean(payload?.hayProyectos ?? payload?.hasProjects, true);
   const tieneObservaciones = normalizeBoolean(
     payload?.tieneObservaciones ?? payload?.hasObservations,
-    Boolean(comment)
+    Boolean(rawComment)
   );
 
-  const observacion = tieneObservaciones ? comment : "";
+  if (tieneObservaciones && !rawComment) {
+    return NextResponse.json({ error: "La observacion no puede estar vacia" }, { status: 400 });
+  }
+
+  const observacion = tieneObservaciones ? rawComment : "";
   const caseId =
     payload?.caseId ??
     payload?.case_id ??
@@ -157,27 +168,31 @@ export async function POST(request) {
   const normalizedCaseId = caseId ? String(caseId) : null;
 
   let savedComment = null;
-  try {
-    savedComment = await prisma.comment.create({
-      data: {
-        content: observacion,
-        projectId,
-        resolved: false,
-      },
-      select: {
-        id: true,
-        content: true,
-        projectId: true,
-        resolved: true,
-        createdAt: true,
-      },
-    });
-  } catch (err) {
-    console.error("Error guardando el comentario en Prisma:", err);
-    return NextResponse.json(
-      { error: "No se pudo guardar el comentario en la base de datos" },
-      { status: 500 }
-    );
+  if (observacion) {
+    try {
+      savedComment = await prisma.comment.create({
+        data: {
+          content: observacion,
+          projectId,
+          resolved: false,
+          bonitaCaseId: normalizedCaseId,
+        },
+        select: {
+          id: true,
+          content: true,
+          projectId: true,
+          resolved: true,
+          bonitaCaseId: true,
+          createdAt: true,
+        },
+      });
+    } catch (err) {
+      console.error("Error guardando el comentario en Prisma:", err);
+      return NextResponse.json(
+        { error: "No se pudo guardar el comentario en la base de datos" },
+        { status: 500 }
+      );
+    }
   }
 
   const observacionBonita = {
@@ -221,10 +236,19 @@ export async function POST(request) {
 
       if (tieneObservaciones) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        const loadObsTask = await completeTaskIfReady(normalizedCaseId, TASKS.LOAD_OBS, {
+        let loadObsTask = await completeTaskIfReady(normalizedCaseId, TASKS.LOAD_OBS, {
           observacion,
           proyecto: projectName,
         });
+
+        if (!loadObsTask) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          loadObsTask = await completeTaskIfReady(normalizedCaseId, TASKS.LOAD_OBS, {
+            observacion,
+            proyecto: projectName,
+          });
+        }
+
         if (loadObsTask) completedTasks.push(loadObsTask);
       }
     } catch (err) {

@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import prisma from "@/lib/prisma";
-import { searchActivityByCaseId, completeActivity } from "@/lib/bonita";
+import { searchActivityByCaseId, completeActivity, setCaseVariable } from "@/lib/bonita";
 
 const TASK_NAMES = {
-  APPLY: ["Aplicar correcciones (max. 5 dias)", "Aplicar correcciones (máx. 5 días)", "Aplicar correcciones"],
-  COMPLETE: ["Observacion completada", "Observación completada"],
+  APPLY: ["Aplicar correcciones (max. 5 dias)", "Aplicar correcciones (máx. 5 días)", "Aplicar correcciones"]
 };
 
 function normalizeText(value) {
@@ -92,8 +91,6 @@ export async function POST(request) {
   const names =
     action === "apply"
       ? TASK_NAMES.APPLY
-      : action === "complete"
-      ? TASK_NAMES.COMPLETE
       : null;
 
   if (!names) {
@@ -113,6 +110,12 @@ export async function POST(request) {
         { error: "No hay tareas disponibles para esta accion. Verifica el nombre de la tarea en Bonita." },
         { status: 409 }
       );
+    }
+    if (action === "complete" && commentId) {
+      await prisma.comment.update({
+        where: { id: commentId },
+        data: { resolved: true },
+      });
     }
     return NextResponse.json({ ok: true, taskId });
   } catch (err) {

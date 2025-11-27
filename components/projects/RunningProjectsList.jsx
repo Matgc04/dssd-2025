@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { toast } from "react-hot-toast";
 
 const STATUS_LABELS = {
@@ -37,7 +36,6 @@ export default function RunningProjectsList({ projects = [] }) {
   const [projectList, setProjectList] = useState(projects);
   const [caseId, setCaseId] = useState(null);
   const [initializing, setInitializing] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(null);
   const [loadedComments, setLoadedComments] = useState({});
 
   const hasProjects = Array.isArray(projectList) && projectList.length > 0;
@@ -76,7 +74,6 @@ export default function RunningProjectsList({ projects = [] }) {
   }, []);
 
   const fetchComments = async (project, { silent = false } = {}) => {
-    if (!silent) setLoadingComments(project.id);
     try {
       const res = await fetch(`/api/projects/comment?projectId=${project.id}`, { cache: "no-store" });
       const payload = await res.json().catch(() => null);
@@ -86,8 +83,6 @@ export default function RunningProjectsList({ projects = [] }) {
       setLoadedComments((prev) => ({ ...prev, [project.id]: payload?.comments ?? [] }));
     } catch (err) {
       if (!silent) toast.error(err.message || "Error obteniendo observaciones.");
-    } finally {
-      if (!silent) setLoadingComments(null);
     }
   };
 
@@ -235,17 +230,6 @@ export default function RunningProjectsList({ projects = [] }) {
                   >
                     {pendingId === project.id ? "Procesando..." : "Sin observaciones"}
                   </button>
-                  <button
-                    type="button"
-                    className="project-card__link"
-                    onClick={() => fetchComments(project)}
-                    disabled={loadingComments === project.id}
-                  >
-                    {loadingComments === project.id ? "Cargando..." : "Ver observaciones"}
-                  </button>
-                  <Link href={`/projects/${project.id}`} className="project-card__link">
-                    Ver detalle
-                  </Link>
                 </div>
                 {Array.isArray(loadedComments[project.id]) && loadedComments[project.id].length > 0 ? (
                   <div

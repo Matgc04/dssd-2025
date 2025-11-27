@@ -32,6 +32,7 @@ function serializeProject(project) {
       id: comment.id,
       content: comment.content,
       resolved: comment.resolved,
+      bonitaCaseId: comment.bonitaCaseId,
       createdAt: toIso(comment.createdAt),
     })),
     stages: (project.stages ?? []).map((stage) => ({

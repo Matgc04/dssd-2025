@@ -11,6 +11,9 @@ export const revalidate = 0;
 function serializeProjects(projects = []) {
   return projects.map((project) => ({
     ...project,
+    pendingComments: Array.isArray(project.comments)
+      ? project.comments.some((comment) => !comment.resolved)
+      : false,
     startDate: project.startDate?.toISOString() ?? null,
     endDate: project.endDate?.toISOString() ?? null,
     createdAt: project.createdAt?.toISOString() ?? null,

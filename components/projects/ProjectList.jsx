@@ -91,6 +91,19 @@ function hasPendingRequests(project) {
   });
 }
 
+function hasPendingComments(project) {
+  if (typeof project?.pendingComments === "boolean") {
+    return project.pendingComments;
+  }
+
+  if (Array.isArray(project?.comments)) {
+    return project.comments.some((comment) => !comment.resolved);
+  }
+
+  const commentsCount = project?._count?.comments;
+  return typeof commentsCount === "number" && commentsCount > 0;
+}
+
 export default function ProjectList({ projects = [], pagination, userName }) {
   const hasProjects = Array.isArray(projects) && projects.length > 0;
   const [executingId, setExecutingId] = useState(null);
@@ -173,6 +186,8 @@ export default function ProjectList({ projects = [], pagination, userName }) {
             const effectiveStatus = statusOverrides[project.id] ?? project?.status;
             const collaborationsFinished = allCollaborationsFinished(project);
             const isFinished = effectiveStatus === FINISHED_STATUS;
+            const pendingRequests = hasPendingRequests(project);
+            const pendingComments = hasPendingComments(project);
             return (
               <li
                 key={project.id}
@@ -208,55 +223,77 @@ export default function ProjectList({ projects = [], pagination, userName }) {
                 </dl>
                 <div
                   className="project-card__actions"
-                  style={{ display: "flex", justifyContent: "space-between" }}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    flexWrap: "wrap",
+                  }}
                 >
                   <Link href={`/projects/${project.id}`} className="project-card__link">
                     Ver detalle
                   </Link>
-                  {hasPendingRequests(project) && (
-                    <div className="project-card__status project-card__status--finished">
-                      ⚠️ Compromisos pendientes
-                    </div>
-                  )}
-                  {effectiveStatus === COMPLETED_STATUS && (
-                    <Link
-                      href="#"
-                      className="project-card__link"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (executingId) return;
-                        handleExecute(project);
-                      }}
-                      aria-disabled={executingId === project.id}
-                      style={
-                        executingId === project.id
-                          ? { pointerEvents: "none", opacity: 0.6 }
-                          : undefined
-                      }
-                    >
-                      {executingId === project.id ? "Ejecutando..." : "Ejecutar"}
-                    </Link>
-                  )}
-                  {effectiveStatus === RUNNING_STATUS && !collaborationsFinished && (
-                    <Link
-                      href={`/projects/${project.id}/finish-colaborations`}
-                      className="project-card__link"
-                    >
-                      Finalizar compromisos
-                    </Link>
-                  )}
-                  {effectiveStatus === RUNNING_STATUS && collaborationsFinished && (
-                    <Link
-                      href="#"
-                      className="project-card__link"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleFinishProject(project.id);
-                      }}
-                    >
-                      Finalizar proyecto
-                    </Link>
-                  )}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                      marginLeft: "auto",
+                    }}
+                  >
+                    {pendingComments && (
+                      <div className="project-card__status project-card__status--running">
+                        💬 Observaciones del consejo
+                      </div>
+                    )}
+                    {pendingRequests && (
+                      <div className="project-card__status project-card__status--finished">
+                        ⚠️ Compromisos pendientes
+                      </div>
+                    )}
+                    {effectiveStatus === COMPLETED_STATUS && (
+                      <Link
+                        href="#"
+                        className="project-card__link"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (executingId) return;
+                          handleExecute(project);
+                        }}
+                        aria-disabled={executingId === project.id}
+                        style={
+                          executingId === project.id
+                            ? { pointerEvents: "none", opacity: 0.6 }
+                            : undefined
+                        }
+                      >
+                        {executingId === project.id ? "Ejecutando..." : "Ejecutar"}
+                      </Link>
+                    )}
+                    {effectiveStatus === RUNNING_STATUS && !collaborationsFinished && (
+                      <Link
+                        href={`/projects/${project.id}/finish-colaborations`}
+                        className="project-card__link"
+                      >
+                        Finalizar compromisos
+                      </Link>
+                    )}
+                    {effectiveStatus === RUNNING_STATUS && collaborationsFinished && (
+                      <Link
+                        href="#"
+                        className="project-card__link"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleFinishProject(project.id);
+                        }}
+                      >
+                        Finalizar proyecto
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </li>
             );
