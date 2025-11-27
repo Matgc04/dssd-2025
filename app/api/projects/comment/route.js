@@ -144,6 +144,12 @@ export async function POST(request) {
     }
   }
 
+  const observacionBonita = {
+    observationId: savedComment?.id ?? null,
+    projectId,
+    content: savedComment?.content ?? observacion,
+  };
+
   try {
     await Promise.all([
       setCaseVariable(normalizedCaseId, "proyecto", projectName, {
@@ -152,7 +158,7 @@ export async function POST(request) {
       setCaseVariable(normalizedCaseId, "tieneObservaciones", tieneObservaciones, {
         type: "java.lang.Boolean",
       }),
-      setCaseVariable(normalizedCaseId, "observacion", observacion, {
+      setCaseVariable(normalizedCaseId, "observacion", observacionBonita, {
         type: "java.lang.String",
       }),
       setCaseVariable(normalizedCaseId, "projectId", projectId, {
