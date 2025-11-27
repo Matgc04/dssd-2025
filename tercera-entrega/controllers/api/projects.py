@@ -425,6 +425,7 @@ def quiero_colaborar():
     )
 
     if not collaborator_org_id:
+        print("No se pudo determinar la organización colaboradora")
         return jsonify({"msg": "No se pudo determinar la organización colaboradora"}), 400
 
     project_id = str(payload.get("project_id") or payload.get("projectId"))
@@ -432,7 +433,7 @@ def quiero_colaborar():
     help_request_id = str(payload.get("help_request_id") or payload.get("helpRequestId"))
     collaboration_id = str(payload.get("collaboration_id") or payload.get("collaborationId"))
 
-    commited_amount = payload.get("commited_amount")
+    commited_unit = payload.get("commited_unit")
     commited_quantity = payload.get("commited_quantity")
 
     field_labels = {
@@ -440,11 +441,12 @@ def quiero_colaborar():
         "stage_id": stage_id,
         "help_request_id": help_request_id,
         "collaboration_id": collaboration_id,
-        "commited_amount": commited_amount,
+        "commited_unit": commited_unit,
         "commited_quantity": commited_quantity,
     }
     missing_fields = [name for name, value in field_labels.items() if value in (None, "")]
     if missing_fields:
+        print(missing_fields)
         return (
             jsonify(
                 {
@@ -471,11 +473,6 @@ def quiero_colaborar():
     if stage_request.is_being_completed:
         return jsonify({"msg": "El pedido de ayuda ya está siendo atendido"}), 409
 
-    committed_amount_decimal = (
-        repo._coerce_decimal(commited_amount, scale=2)
-        if commited_amount is not None
-        else None
-    )
     committed_quantity_decimal = (
         repo._coerce_decimal(commited_quantity, scale=3)
         if commited_quantity is not None
@@ -486,8 +483,8 @@ def quiero_colaborar():
         id=collaboration_id,
         stage_request_id=stage_request.id,
         collaborator_org_id=str(collaborator_org_id),
-        committed_amount=committed_amount_decimal,
         committed_quantity=committed_quantity_decimal,
+        commited_unit=commited_unit,
     )
     repo.session.add(collaboration)
 
@@ -507,7 +504,7 @@ def quiero_colaborar():
             "stage_id": stage_id,
             "stage_request_id": stage_request.id,
             "collaborator_org_id": collaborator_org_id,
-            "committed_amount": _decimal_to_float(collaboration.committed_amount),
+            "committed_unit": collaboration.commited_unit,
             "committed_quantity": _decimal_to_float(collaboration.committed_quantity),
         },
     }
