@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import RequestsChart from "@/components/reports/RequestsChart";
 import ProjectStatusChart from "@/components/reports/ProjectStatusChart";
+import DelayedObservationsList from "@/components/reports/DelayedObservationsList";
 
 const FALLBACK_CHART_DATA = {
   labels: ["Materiales", "Económico", "Mano de obra", "Otro"],
@@ -72,6 +73,11 @@ const FALLBACK_STATUS_DISTRIBUTION = {
   ],
 };
 
+const FALLBACK_DELAYED_OBSERVATIONS = {
+  items: [],
+  error: null,
+};
+
 async function requestReportsEndpoint(path, defaultErrorMessage) {
   const cookieStore = await cookies();
   const headerStore = await headers();
@@ -114,6 +120,13 @@ async function fetchProjectStatusDistribution() {
   );
 }
 
+async function fetchDelayedObservations() {
+  return requestReportsEndpoint(
+    "/api/reports/delayed-observations",
+    "No se pudo obtener el reporte de observaciones demoradas"
+  );
+}
+
 export default async function ReportsPage() {
   const session = await getSession();
   if (!session || session.roleName !== ROLES.CONSEJO_DIRECTIVO) {
@@ -133,6 +146,10 @@ export default async function ReportsPage() {
     chartData: FALLBACK_STATUS_DISTRIBUTION.chartData,
     bucketSummaries: FALLBACK_STATUS_DISTRIBUTION.bucketSummaries,
     error: null,
+  };
+
+  let delayedObservations = {
+    ...FALLBACK_DELAYED_OBSERVATIONS,
   };
 
   try {
@@ -167,6 +184,19 @@ export default async function ReportsPage() {
     statusDistribution.error =
       err?.message ||
       "No se pudo obtener la distribución por estado. Intenta nuevamente en unos minutos.";
+  }
+
+  try {
+    const delayedData = await fetchDelayedObservations();
+    delayedObservations = {
+      items: Array.isArray(delayedData?.items) ? delayedData.items : [],
+      error: null,
+    };
+  } catch (err) {
+    console.error("Error al preparar el reporte de observaciones demoradas:", err);
+    delayedObservations.error =
+      err?.message ||
+      "No se pudo obtener el reporte de observaciones demoradas. Intenta nuevamente en unos minutos.";
   }
 
   return (
@@ -212,6 +242,18 @@ export default async function ReportsPage() {
               data={statusDistribution.chartData}
               bucketSummaries={statusDistribution.bucketSummaries}
             />
+          )}
+        </div>
+        <div className="reports-stage-chart">
+          <h2 className="home-title">Observaciones resueltas fuera de plazo</h2>
+          <p className="home-lead">
+            Comentarios del Consejo Directivo que fueron resueltos después de los 5 segundos permitidos
+            durante la última semana.
+          </p>
+          {delayedObservations.error ? (
+            <p className="error-message">{delayedObservations.error}</p>
+          ) : (
+            <DelayedObservationsList items={delayedObservations.items} />
           )}
         </div>
       </div>
