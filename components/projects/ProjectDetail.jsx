@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
@@ -22,12 +23,6 @@ function formatNumber(value) {
   const num = Number(value);
   if (Number.isNaN(num)) return String(value);
   return num % 1 === 0 ? num.toString() : num.toFixed(2);
-}
-
-function formatAmount(amount, currency) {
-  const numeric = formatNumber(amount);
-  if (!numeric) return "No definido";
-  return `${numeric} ${currency ?? ""}`.trim();
 }
 
 function formatQuantity(quantity, unit) {
@@ -63,6 +58,7 @@ function formatProcessStatus(status){
 export default function ProjectDetail({ project, collaborations = [], fetchError }) {
   const [pendingId, setPendingId] = useState(null);
   const [decisions, setDecisions] = useState({});
+  const router = useRouter();
 
   const stages = project?.stages ?? [];
   const hasStages = stages.length > 0;
@@ -100,6 +96,9 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
 
       setDecisions((prev) => ({ ...prev, [collaboration.id]: accepted }));
       toast.success(accepted ? "Aceptaste el compromiso." : "Rechazaste el compromiso.");
+      if (accepted) {
+        router.push("/projects");
+      }
     } catch (error) {
       console.error("Error enviando decisión de compromiso:", error);
       toast.error(error.message || "No pudimos registrar tu respuesta.");
@@ -211,11 +210,7 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
 
                   <div className="project-card__meta" style={{ marginTop: 0 }}>
                     <div>
-                      <dt>Importe comprometido</dt>
-                      <dd>{formatAmount(collaboration.committedAmount, collaboration.committedCurrency)}</dd>
-                    </div>
-                    <div>
-                      <dt>Cantidad comprometida</dt>
+                      <dt>SE COMPROMETE A DAR</dt>
                       <dd>{formatQuantity(collaboration.committedQuantity, collaboration.committedUnit)}</dd>
                     </div>
                     <div>
@@ -223,7 +218,7 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
                       <dd>{formatDate(collaboration.expectedDeliveryDate)}</dd>
                     </div>
                     <div>
-                      <dt>Recibido</dt>
+                      <dt>Colaboracion creada</dt>
                       <dd>{formatDate(collaboration.createdAt)}</dd>
                     </div>
                   </div>
@@ -325,12 +320,6 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
                             <dt>Cantidad solicitada</dt>
                             <dd style={{ margin: 0 }}>
                               {formatQuantity(request.quantity, request.unit)}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Importe solicitado</dt>
-                            <dd style={{ margin: 0 }}>
-                              {formatAmount(request.amount, request.currency)}
                             </dd>
                           </div>
                         </div>

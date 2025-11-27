@@ -60,7 +60,7 @@ export default async function CollaborateProjectDetailPage({ params }) {
           <h1 className="projects-title">Detalle del proyecto</h1>
           <p className="projects-subtitle">
             {projectId
-              ? `Estás viendo el proyecto ${projectId}. Elegí un pedido para confirmar tu ayuda.`
+              ? `Elegí un pedido para confirmar tu ayuda.`
               : "Falta el identificador del proyecto, volvé al listado para elegir uno."}
           </p>
         </div>

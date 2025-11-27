@@ -30,27 +30,26 @@ export default function RequestRow({ sIdx, rIdx, remove }) {
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label}>Cantidad</label>
-          <input type="number" step="any" className={styles.control} {...register(`${base}.quantity`)} />
+          <label className={styles.label}>Cantidad *</label>
+          <input
+            type="number"
+            step="any"
+            required
+            className={styles.control}
+            {...register(`${base}.quantity`)}
+          />
           <FieldError err={requestErrors.quantity} />
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label}>Unidad</label>
-          <input className={styles.control} {...register(`${base}.unit`)} />
+          <label className={styles.label}>Unidad *</label>
+          <input
+            required
+            className={styles.control}
+            {...register(`${base}.unit`)}
+            placeholder="Ej: cajas, litros"
+          />
           <FieldError err={requestErrors.unit} />
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label}>Importe</label>
-          <input type="number" step="any" className={styles.control} {...register(`${base}.amount`)} />
-          <FieldError err={requestErrors.amount} />
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label}>Moneda</label>
-          <input className={styles.control} {...register(`${base}.currency`)} maxLength={3} />
-          <FieldError err={requestErrors.currency} />
         </div>
       </div>
 

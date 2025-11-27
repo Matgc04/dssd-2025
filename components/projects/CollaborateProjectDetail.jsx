@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import FieldError from "@/components/projects/FieldError";
 import styles from "@/components/projects/FormStyles.module.css";
 import { collaborationRequestSchema } from "@/lib/validation/collaborationRequestSchema";
@@ -51,6 +52,7 @@ function formatDate(value) {
 }
 
 export default function CollaborateProjectDetail({ projectId, stagesPayload, fetchError }) {
+  const router = useRouter();
   const stages = useMemo(() => normalizeStages(stagesPayload), [stagesPayload]);
   const initialStageId = stages[0]?.id ?? "";
   const initialRequestId = stages[0]?.requests?.[0]?.id ?? "";
@@ -68,8 +70,6 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
       requestId: initialRequestId,
       quantityAvailable: "",
       unit: "",
-      amountAvailable: "",
-      currency: "",
       expectedDeliveryDate: "",
       notes: "",
     },
@@ -115,6 +115,7 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
       }
 
       toast.success("Gracias, registramos tu colaboración.");
+      router.push("/projects/colaborate");
     } catch (error) {
       console.error("Error enviando colaboración:", error);
       toast.error(error.message || "No pudimos registrar tu colaboración.");
@@ -208,11 +209,9 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
                   Pedido original · <strong>{selectedRequest.type}</strong>
                 </div>
                 <div className={styles.requestCounter}>
-                  {selectedRequest.quantity
+                  {selectedRequest.quantity !== null && selectedRequest.quantity !== undefined
                     ? `${selectedRequest.quantity} ${selectedRequest.unit ?? ""}`.trim()
-                    : selectedRequest.amount
-                      ? `${selectedRequest.amount} ${selectedRequest.currency ?? ""}`.trim()
-                      : "Sin cantidad definida"}
+                    : "Sin cantidad definida"}
                 </div>
               </div>
               <p className={styles.pageSubtitle}>{selectedRequest.description}</p>
@@ -227,11 +226,12 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
 
           <div className={styles.grid}>
             <div className={styles.field}>
-              <label className={styles.label}>Cantidad disponible</label>
+              <label className={styles.label}>Cantidad disponible *</label>
               <input
                 type="number"
                 step="any"
                 className={styles.control}
+                required
                 {...register("quantityAvailable")}
                 placeholder="Ej: 10"
               />
@@ -239,36 +239,14 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label}>Unidad</label>
+              <label className={styles.label}>Unidad *</label>
               <input
                 className={styles.control}
+                required
                 {...register("unit")}
                 placeholder="Ej: cajas, litros"
               />
               <FieldError err={errors.unit} />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Importe disponible</label>
-              <input
-                type="number"
-                step="any"
-                className={styles.control}
-                {...register("amountAvailable")}
-                placeholder="Ej: 150000"
-              />
-              <FieldError err={errors.amountAvailable} />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>Moneda</label>
-              <input
-                className={styles.control}
-                maxLength={3}
-                {...register("currency")}
-                placeholder="ARS, USD"
-              />
-              <FieldError err={errors.currency} />
             </div>
 
             <div className={styles.field}>
@@ -338,23 +316,17 @@ export default function CollaborateProjectDetail({ projectId, stagesPayload, fet
                         <p>{request.type ?? "Sin datos"}</p>
                       </div>
                       <div>
-                        <strong>Cantidad</strong>
+                        <strong>Necesita</strong>
                         <p>
-                          {request.quantity
+                          {request.quantity !== null && request.quantity !== undefined
                             ? `${request.quantity} ${request.unit ?? ""}`.trim()
                             : "No especificada"}
                         </p>
                       </div>
-                      <div>
-                        <strong>Importe</strong>
-                        <p>
-                          {request.amount
-                            ? `${request.amount} ${request.currency ?? ""}`.trim()
-                            : "No especificado"}
-                        </p>
-                      </div>
                     </div>
+                    <div><strong>Descripción</strong>
                     <p>{request.description ?? "Sin descripción"}</p>
+                    </div>
                   </div>
                 ))}
               </div>

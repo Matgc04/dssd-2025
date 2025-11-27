@@ -63,8 +63,6 @@ model Request {
   id          String      @id @default(cuid())
   type        RequestType
   description String      @db.VarChar(300)
-  amount      Decimal?    @db.Decimal(15, 2)
-  currency    String?     @db.VarChar(3) // ISO-4217
   quantity    Decimal?    @db.Decimal(15, 3)
   unit        String?     @db.VarChar(50)
   order       Int         @default(0)
@@ -91,8 +89,6 @@ model Collaboration {
   stageId              String
   requestId            String
   orgId                String    @db.VarChar(255)
-  committedAmount      Decimal?  @db.Decimal(15, 2)
-  committedCurrency    String?   @db.VarChar(3)
   committedQuantity    Decimal?  @db.Decimal(15, 3)
   committedUnit        String?   @db.VarChar(50)
   notes                String?   @db.VarChar(500)

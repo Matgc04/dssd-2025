@@ -4,10 +4,51 @@ import prisma from "@/lib/prisma";
 import { store } from "@/lib/store";
 import { ROLES } from "@/lib/constants";
 import { setCaseVariable, searchActivityByCaseId, completeActivity, getCaseVariable } from "@/lib/bonita";
+import { updateProjectStatus } from "@/lib/projectService";
 
 const CLOUD_URL = process.env.CLOUD_URL || "http://localhost:8000";
 
 const taskName = "Carga respuesta"
+const SUCCESS_COLLAB_STATUSES = new Set(["ACCEPTED", "FINISHED"]);
+
+async function tryMarkProjectCompleted(projectId) {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      status: true,
+      stages: {
+        select: {
+          requests: {
+            select: {
+              collaborations: {
+                select: { status: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!project) return;
+  if (project.status === "RUNNING" || project.status === "FINISHED" || project.status === "COMPLETED") {
+    return;
+  }
+
+  const requests = (project.stages ?? []).flatMap((stage) => stage?.requests ?? []);
+  if (requests.length === 0) return;
+
+  const allCommitted = requests.every((req) =>
+    (req?.collaborations ?? []).some((col) =>
+      SUCCESS_COLLAB_STATUSES.has((col?.status ?? "").toUpperCase())
+    )
+  );
+
+  if (!allCommitted) return;
+
+  await updateProjectStatus(projectId, "COMPLETED");
+}
 
 export async function POST(request) {
   let payload;
@@ -209,6 +250,10 @@ export async function POST(request) {
         where: { id: collaborationId },
         data: { status: accepted ? "ACCEPTED" : "REJECTED" },
       });
+
+      if (accepted) {
+        await tryMarkProjectCompleted(projectId);
+      }
     } catch (error) {
       console.error("No se pudo actualizar el estado de la colaboración en BD:", error);
       return NextResponse.json(

@@ -39,8 +39,6 @@ function serializeProject(project) {
         id: request.id,
         type: request.type,
         description: request.description,
-        amount: toStringOrNull(request.amount),
-        currency: request.currency,
         quantity: toStringOrNull(request.quantity),
         unit: request.unit,
         order: request.order,
@@ -62,8 +60,6 @@ function serializeCollaboration(collaboration) {
     stageId: collaboration.stageId,
     requestId: collaboration.requestId,
     orgId: collaboration.orgId,
-    committedAmount: toStringOrNull(collaboration.committedAmount),
-    committedCurrency: collaboration.committedCurrency,
     committedQuantity: toStringOrNull(collaboration.committedQuantity),
     committedUnit: collaboration.committedUnit,
     notes: collaboration.notes,
@@ -78,8 +74,6 @@ function serializeCollaboration(collaboration) {
           id: collaboration.request.id,
           type: collaboration.request.type,
           description: collaboration.request.description,
-          amount: toStringOrNull(collaboration.request.amount),
-          currency: collaboration.request.currency,
           quantity: toStringOrNull(collaboration.request.quantity),
           unit: collaboration.request.unit,
           order: collaboration.request.order,
@@ -111,7 +105,7 @@ function isProjectCompleted(project, collaborations = []) {
     const collab = collabByRequestId.get(req.id);
     if (!collab) return false;
     const status = (collab.status ?? "").toUpperCase();
-    return status === "ACCEPTED";
+    return status === "ACCEPTED" || status === "REJECTED";
   });
 }
 
@@ -178,19 +172,19 @@ export async function GET(request) {
     },
   });
 
-  try {
-    const canMarkCompleted =
-      project.status !== "COMPLETED" &&
-      project.status !== "RUNNING" &&
-      isProjectCompleted(project, collaborations);
+  // try {
+  //   const canMarkCompleted =
+  //     project.status !== "COMPLETED" &&
+  //     project.status !== "RUNNING" &&
+  //     isProjectCompleted(project, collaborations);
 
-    if (canMarkCompleted) {
-      await updateProjectStatus(projectId, "COMPLETED");
-      project.status = "COMPLETED";
-    }
-  } catch (err) {
-    console.error("No se pudo actualizar el estado a COMPLETED:", err);
-  }
+  //   if (canMarkCompleted) {
+  //     await updateProjectStatus(projectId, "COMPLETED");
+  //     project.status = "COMPLETED";
+  //   }
+  // } catch (err) {
+  //   console.error("No se pudo actualizar el estado a COMPLETED:", err);
+  // }
 
   return NextResponse.json({
     project: serializeProject(project),

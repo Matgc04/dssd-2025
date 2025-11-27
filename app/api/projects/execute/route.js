@@ -143,11 +143,10 @@ export async function POST(request) {
   }
   try {
     const currentStatus = project.status;
-    if (currentStatus === "COMPLETED") {
+    if (currentStatus !== "RUNNING") {
       console.log("Actualizando estado del proyecto a RUNNING", project.id, currentStatus);
       await updateProjectStatus(project.id, "RUNNING");
       project.status = "RUNNING";
-      console.log("Estado del proyecto actualizado a RUNNING", project.status);
     }
   } catch (err) {
     console.error("No se pudo actualizar el estado a RUNNING:", err);

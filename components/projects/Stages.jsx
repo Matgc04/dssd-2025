@@ -11,7 +11,14 @@ const createEmptyStage = () => ({
   description: "",
   startDate: "",
   endDate: "",
-  requests: [],
+  requests: [
+    {
+      type: "materials",
+      description: "",
+      quantity: undefined,
+      unit: "",
+    },
+  ],
 });
 
 export default function Stages() {

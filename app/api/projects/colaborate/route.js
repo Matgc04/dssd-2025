@@ -7,22 +7,13 @@ import { setCaseVariable, searchActivityByCaseId, completeActivity } from "@/lib
 const taskName = "Cargar compromiso"
 
 function toNumber(value) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return 0;
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-}
+  if (value === null || value === undefined) return Number.NaN;
 
-function toNullableDecimal(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const num = toNumber(value);
-  return Number.isFinite(num) ? num : null;
+  const normalized = typeof value === "string" ? value.trim() : value;
+  if (normalized === "") return Number.NaN;
+
+  const parsed = typeof normalized === "number" ? normalized : Number(normalized);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
 function toDate(value) {
@@ -47,8 +38,6 @@ export async function POST(req) {
     requestId,
     quantityAvailable,
     unit,
-    amountAvailable,
-    currency,
     notes,
     expectedDeliveryDate,
     taskContractValues,
@@ -116,11 +105,26 @@ export async function POST(req) {
     );
   }
 
+  const normalizedUnit = unit === null || unit === undefined ? "" : String(unit).trim();
+  const parsedQuantity = toNumber(quantityAvailable);
+
+  if (!Number.isFinite(parsedQuantity)) {
+    return NextResponse.json(
+      { error: "La cantidad comprometida es obligatoria y debe ser numérica" },
+      { status: 400 }
+    );
+  }
+
+  if (!normalizedUnit) {
+    return NextResponse.json(
+      { error: "La unidad del compromiso es obligatoria" },
+      { status: 400 }
+    );
+  }
+
   const collaborationVariable = {
-    commited_amount: toNumber(amountAvailable),
-    commited_unit: unit ?? "",
-    commited_quantity: toNumber(quantityAvailable),
-    commited_currency: currency ?? "",
+    commited_unit: normalizedUnit,
+    commited_quantity: parsedQuantity,
     help_request_id: requestId,
     org_id: session.userId,
     project_id: projectId,
@@ -144,10 +148,8 @@ export async function POST(req) {
         stageId,
         requestId,
         orgId: session.userId,
-        committedAmount: toNullableDecimal(amountAvailable),
-        committedCurrency: currency?.trim() || null,
-        committedQuantity: toNullableDecimal(quantityAvailable),
-        committedUnit: unit?.trim() || null,
+        committedQuantity: parsedQuantity,
+        committedUnit: normalizedUnit,
         notes: notes?.trim() || null,
         expectedDeliveryDate: toDate(expectedDeliveryDate),
         bonitaCaseId: project.bonitaCaseId,
