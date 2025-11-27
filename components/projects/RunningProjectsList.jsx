@@ -8,7 +8,7 @@ const STATUS_LABELS = {
   DRAFT: "Borrador",
   STARTED: "Iniciado",
   COMPLETED: "Completo",
-  RUNNING: "En ejecución",
+  RUNNING: "En ejecucion",
   FINISHED: "Finalizado",
   ERROR: "Error",
 };
@@ -37,6 +37,8 @@ export default function RunningProjectsList({ projects = [] }) {
   const [projectList, setProjectList] = useState(projects);
   const [caseId, setCaseId] = useState(null);
   const [initializing, setInitializing] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(null);
+  const [loadedComments, setLoadedComments] = useState({});
 
   const hasProjects = Array.isArray(projectList) && projectList.length > 0;
 
@@ -48,13 +50,10 @@ export default function RunningProjectsList({ projects = [] }) {
       try {
         const res = await fetch("/api/projects/running", { cache: "no-store" });
         const payload = await res.json().catch(() => null);
-
         if (!active) return;
-
         if (!res.ok) {
-          throw new Error(payload?.error || "No se pudieron obtener los proyectos en ejecución.");
+          throw new Error(payload?.error || "No se pudieron obtener los proyectos en ejecucion.");
         }
-
         if (Array.isArray(payload?.projects)) {
           setProjectList(payload.projects);
         }
@@ -71,25 +70,36 @@ export default function RunningProjectsList({ projects = [] }) {
     };
 
     hydrateFromApi();
-
     return () => {
       active = false;
     };
   }, []);
 
+  const fetchComments = async (project, { silent = false } = {}) => {
+    if (!silent) setLoadingComments(project.id);
+    try {
+      const res = await fetch(`/api/projects/comment?projectId=${project.id}`, { cache: "no-store" });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(payload?.error || "No se pudieron obtener las observaciones.");
+      }
+      setLoadedComments((prev) => ({ ...prev, [project.id]: payload?.comments ?? [] }));
+    } catch (err) {
+      if (!silent) toast.error(err.message || "Error obteniendo observaciones.");
+    } finally {
+      if (!silent) setLoadingComments(null);
+    }
+  };
+
   const handleSend = async (project, hasObservations = true) => {
     const message = (comments[project.id] ?? "").trim();
     if (hasObservations && !message) {
-      toast.error("Escribí una observación o marcá 'Sin observaciones'.");
-      return;
-    }
-    if (!caseId) {
-      toast.error("No se pudo iniciar el proceso en Bonita. Reintentá recargar la página.");
+      toast.error("Escribi una observacion o marca 'Sin observaciones'.");
       return;
     }
     setPendingId(project.id);
     const toastId = toast.loading(
-      hasObservations ? "Enviando observación a Bonita..." : "Marcando sin observaciones..."
+      hasObservations ? "Enviando observacion a Bonita..." : "Marcando sin observaciones..."
     );
     try {
       const res = await fetch("/api/projects/comment", {
@@ -109,12 +119,13 @@ export default function RunningProjectsList({ projects = [] }) {
         throw new Error(payload?.error || "No se pudo guardar el comentario.");
       }
       toast.success(
-        hasObservations ? "Observación enviada." : "Caso marcado sin observaciones.",
+        hasObservations ? "Observacion enviada." : "Caso marcado sin observaciones.",
         { id: toastId }
       );
       setComments((prev) => ({ ...prev, [project.id]: "" }));
+      await fetchComments(project, { silent: true });
     } catch (err) {
-      toast.error(err.message || "Error enviando observación.", { id: toastId });
+      toast.error(err.message || "Error enviando observacion.", { id: toastId });
     } finally {
       setPendingId(null);
     }
@@ -125,11 +136,10 @@ export default function RunningProjectsList({ projects = [] }) {
       <header className="projects-header">
         <div className="projects-header__copy">
           <p className="projects-eyebrow">Consejo Directivo</p>
-          <h1 className="projects-title">Proyectos en ejecución</h1>
+          <h1 className="projects-title">Proyectos en ejecucion</h1>
           <p className="projects-subtitle">
-            Dejá observaciones sobre los proyectos activos. Bonita recibe las variables del proceso
-            (<code>hayProyectos</code>, <code>proyecto</code>, <code>tieneObservaciones</code> y{" "}
-            <code>observacion</code>) y sus conectores se encargan del resto.
+            Deja observaciones sobre los proyectos activos. Se guardan en Bonita y en la BD como
+            comentarios.
           </p>
         </div>
       </header>
@@ -139,7 +149,7 @@ export default function RunningProjectsList({ projects = [] }) {
           className="projects-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr", // una columna para ocupar todo el ancho
+            gridTemplateColumns: "1fr",
             gap: "1rem",
             width: "100%",
             margin: 0,
@@ -154,7 +164,7 @@ export default function RunningProjectsList({ projects = [] }) {
               style={{
                 display: "grid",
                 gap: "0.75rem",
-                width: "100%", // asegurar que cada tarjeta use todo el ancho disponible
+                width: "100%",
               }}
             >
               <div className="project-card__body">
@@ -176,7 +186,7 @@ export default function RunningProjectsList({ projects = [] }) {
                   <dd>{formatStatus(project.status)}</dd>
                 </div>
                 <div>
-                  <dt>País</dt>
+                  <dt>Pais</dt>
                   <dd>{project.originCountry || "Sin datos"}</dd>
                 </div>
               </dl>
@@ -203,7 +213,7 @@ export default function RunningProjectsList({ projects = [] }) {
                     padding: "0.75rem",
                     fontFamily: "inherit",
                   }}
-                  placeholder="Dejá indicaciones o comentarios para el proceso en Bonita..."
+                  placeholder="Deja indicaciones o comentarios para el proceso en Bonita..."
                 />
                 <div
                   className="project-card__actions"
@@ -213,22 +223,54 @@ export default function RunningProjectsList({ projects = [] }) {
                     type="button"
                     className="auth-submit"
                     onClick={() => handleSend(project, true)}
-                    disabled={pendingId === project.id || !caseId || initializing}
+                    disabled={pendingId === project.id || initializing}
                   >
-                    {pendingId === project.id ? "Enviando..." : "Enviar observación"}
+                    {pendingId === project.id ? "Enviando..." : "Enviar observacion"}
                   </button>
                   <button
                     type="button"
                     className="project-card__link"
                     onClick={() => handleSend(project, false)}
-                    disabled={pendingId === project.id || !caseId || initializing}
+                    disabled={pendingId === project.id || initializing}
                   >
                     {pendingId === project.id ? "Procesando..." : "Sin observaciones"}
                   </button>
+                  <button
+                    type="button"
+                    className="project-card__link"
+                    onClick={() => fetchComments(project)}
+                    disabled={loadingComments === project.id}
+                  >
+                    {loadingComments === project.id ? "Cargando..." : "Ver observaciones"}
+                  </button>
                   <Link href={`/projects/${project.id}`} className="project-card__link">
-                    TODO: Ver detalle
+                    Ver detalle
                   </Link>
                 </div>
+                {Array.isArray(loadedComments[project.id]) && loadedComments[project.id].length > 0 ? (
+                  <div
+                    style={{
+                      padding: "0.75rem",
+                      borderRadius: "10px",
+                      border: "1px solid var(--border)",
+                      background: "var(--surface)",
+                      display: "grid",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <div className="projects-eyebrow">Observaciones guardadas</div>
+                    <ul style={{ margin: 0, paddingLeft: "1.1rem", display: "grid", gap: "0.4rem" }}>
+                      {loadedComments[project.id].map((item) => (
+                        <li key={item.id}>
+                          <div>{item.content}</div>
+                          <div style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                            {item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             </li>
           ))}
@@ -236,8 +278,8 @@ export default function RunningProjectsList({ projects = [] }) {
       ) : (
         <div className="projects-empty">
           <div className="projects-empty__card">
-            <h2>No hay proyectos en ejecución</h2>
-            <p>Cuando haya proyectos en ejecución vas a poder comentarlos desde aquí.</p>
+            <h2>No hay proyectos en ejecucion</h2>
+            <p>Cuando haya proyectos en ejecucion vas a poder comentarlos desde aqui.</p>
           </div>
         </div>
       )}

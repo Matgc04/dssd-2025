@@ -59,6 +59,7 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
   const [pendingId, setPendingId] = useState(null);
   const [decisions, setDecisions] = useState({});
   const router = useRouter();
+  const comments = Array.isArray(project?.comments) ? project.comments : [];
 
   const stages = project?.stages ?? [];
   const hasStages = stages.length > 0;
@@ -156,6 +157,43 @@ export default function ProjectDetail({ project, collaborations = [], fetchError
           </div>
         </dl>
       </div>
+
+      {comments.length > 0 ? (
+        <div className="project-card">
+          <div className="project-card__body">
+            <p className="projects-eyebrow">Observaciones</p>
+            <h3 className="project-card__title">Comentarios del consejo directivo</h3>
+            <p className="project-card__description">
+              Observaciones cargadas por el consejo directivo.
+            </p>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gap: "0.75rem",
+              padding: "1rem",
+            }}
+          >
+            {comments.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: "10px",
+                  padding: "0.75rem",
+                  display: "grid",
+                  gap: "0.35rem",
+                }}
+              >
+                <div style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  {item.createdAt ? formatDate(item.createdAt) : ""}
+                </div>
+                <div>{item.content}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="project-card">
         <div className="project-card__body">

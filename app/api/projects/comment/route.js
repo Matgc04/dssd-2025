@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { setCaseVariable, searchActivityByCaseId, completeActivity } from "@/lib/bonita";
 
 const TASKS = {
-  ANALYZE: "Analizar proyecto en ejecución",
+  ANALYZE: "Analizar proyecto en ejecucion",
   LOAD_OBS: "Cargar observaciones y mejoras",
 };
 
@@ -13,12 +13,8 @@ function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    if (normalized === "true" || normalized === "1" || normalized === "si") {
-      return true;
-    }
-    if (normalized === "false" || normalized === "0" || normalized === "no") {
-      return false;
-    }
+    if (normalized === "true" || normalized === "1" || normalized === "si") return true;
+    if (normalized === "false" || normalized === "0" || normalized === "no") return false;
   }
   if (typeof value === "number") return value === 1;
   return fallback;
@@ -40,14 +36,48 @@ async function completeTaskIfReady(caseId, names, contractValues = {}) {
 
   if (!target) return null;
 
-  console.log(target.displayName + " - Completando tarea...");
-
   await completeActivity(target.id, contractValues);
 
   return {
     id: target.id,
     name: target.displayName || target.name,
   };
+}
+
+export async function GET(request) {
+  const session = await getSession();
+  const isConsejo = session?.roleName === ROLES.CONSEJO_DIRECTIVO;
+  const isOriginante = session?.roleName === ROLES.ONG_ORIGINANTE;
+
+  if (!session || (!isConsejo && !isOriginante)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const projectId = searchParams.get("projectId");
+  if (!projectId) {
+    return NextResponse.json({ error: "projectId es requerido" }, { status: 400 });
+  }
+
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        content: true,
+        resolved: true,
+        createdAt: true,
+      },
+    });
+    return NextResponse.json({ comments });
+  } catch (err) {
+    console.error("Error leyendo comentarios desde BD:", err);
+    return NextResponse.json(
+      { error: "No se pudieron obtener las observaciones" },
+      { status: 502 }
+    );
+  }
 }
 
 export async function POST(request) {
@@ -60,7 +90,7 @@ export async function POST(request) {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json({ error: "JSON invalido" }, { status: 400 });
   }
 
   const projectId = payload?.projectId;
@@ -77,11 +107,15 @@ export async function POST(request) {
     return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
   }
 
-  if (project.status !== "RUNNING") {
-    return NextResponse.json({ error: "El proyecto no está en ejecución" }, { status: 409 });
+  if (project.status !== "RUNNING" && project.status !== "STARTED") {
+    return NextResponse.json({ error: "El proyecto no esta en ejecucion" }, { status: 409 });
   }
 
   const comment = (payload?.comment ?? payload?.observacion ?? "").trim();
+  if (!comment) {
+    return NextResponse.json({ error: "La observacion no puede estar vacia" }, { status: 400 });
+  }
+
   const projectName =
     (payload?.proyecto ??
       payload?.projectName ??
@@ -95,53 +129,39 @@ export async function POST(request) {
     Boolean(comment)
   );
 
-  const observacion = tieneObservaciones
-    ? comment || ""
-    : "";
+  const observacion = tieneObservaciones ? comment : "";
   const caseId =
     payload?.caseId ??
     payload?.case_id ??
     payload?.caseID ??
     payload?.bonitaCaseId ??
-    payload?.bonita_case_id;
+    payload?.bonita_case_id ??
+    project.bonitaCaseId;
 
   const normalizedCaseId = caseId ? String(caseId) : null;
 
-  if (!normalizedCaseId) {
-    return NextResponse.json(
-      { error: "caseId es requerido para completar el proceso en Bonita" },
-      { status: 400 }
-    );
-  }
-
-  console.log("tiene observacion:", tieneObservaciones);
-  console.log("observacion:", observacion);
-
   let savedComment = null;
-  if (tieneObservaciones && observacion) {
-    try {
-      savedComment = await prisma.comment.create({
-        data: {
-          content: observacion,
-          projectId,
-          resolved: false,
-        },
-        select: {
-          id: true,
-          content: true,
-          projectId: true,
-          resolved: true,
-          createdAt: true,
-        },
-      });
-      console.log("Comentario guardado en Prisma con ID:", savedComment.id);
-    } catch (err) {
-      console.error("Error guardando el comentario en Prisma:", err);
-      return NextResponse.json(
-        { error: "No se pudo guardar el comentario en la base de datos" },
-        { status: 500 }
-      );
-    }
+  try {
+    savedComment = await prisma.comment.create({
+      data: {
+        content: observacion,
+        projectId,
+        resolved: false,
+      },
+      select: {
+        id: true,
+        content: true,
+        projectId: true,
+        resolved: true,
+        createdAt: true,
+      },
+    });
+  } catch (err) {
+    console.error("Error guardando el comentario en Prisma:", err);
+    return NextResponse.json(
+      { error: "No se pudo guardar el comentario en la base de datos" },
+      { status: 500 }
+    );
   }
 
   const observacionBonita = {
@@ -150,66 +170,55 @@ export async function POST(request) {
     content: savedComment?.content ?? observacion,
   };
 
-  try {
-    await Promise.all([
-      setCaseVariable(normalizedCaseId, "proyecto", projectName, {
-        type: "java.lang.String",
-      }),
-      setCaseVariable(normalizedCaseId, "tieneObservaciones", tieneObservaciones, {
-        type: "java.lang.Boolean",
-      }),
-      setCaseVariable(normalizedCaseId, "observacion", observacionBonita, {
-        type: "java.lang.String",
-      }),
-      setCaseVariable(normalizedCaseId, "projectId", projectId, {
-        type: "java.lang.String",
-      }),
-    ]);
-  } catch (err) {
-    console.error("Error seteando variables del proceso en Bonita:", err);
-    return NextResponse.json(
-      { error: "No se pudieron registrar las variables del proceso en Bonita" },
-      { status: 502 }
-    );
-  }
-
   const completedTasks = [];
-  try {
-    const analyzeTask = await completeTaskIfReady(normalizedCaseId, [TASKS.ANALYZE], {
-      tieneObservaciones,
-      proyecto: projectName,
-      hayProyectos,
-    });
-    if (analyzeTask) completedTasks.push(analyzeTask);
-
-    if (tieneObservaciones) {
-      await new Promise(resolve => setTimeout(resolve, 1000)); //timeout de 1 segundo para que pase a ready y la podamos hacer
-      const loadObsTask = await completeTaskIfReady(normalizedCaseId, [TASKS.LOAD_OBS], {
-        observacion,
-        proyecto: projectName,
-      });
-      if (loadObsTask) completedTasks.push(loadObsTask);
+  if (normalizedCaseId) {
+    try {
+      await Promise.all([
+        setCaseVariable(normalizedCaseId, "proyecto", projectName, {
+          type: "java.lang.String",
+        }),
+        setCaseVariable(normalizedCaseId, "tieneObservaciones", tieneObservaciones, {
+          type: "java.lang.Boolean",
+        }),
+        setCaseVariable(normalizedCaseId, "observacion", observacionBonita, {
+          type: "java.lang.String",
+        }),
+        setCaseVariable(normalizedCaseId, "projectId", projectId, {
+          type: "java.lang.String",
+        }),
+      ]);
+    } catch (err) {
+      console.error("Error seteando variables del proceso en Bonita:", err);
+      return NextResponse.json(
+        { error: "No se pudieron registrar las variables del proceso en Bonita" },
+        { status: 502 }
+      );
     }
-  } catch (err) {
-    console.error("Error completando tareas de Bonita:", err);
-    return NextResponse.json(
-      { error: "No se pudieron completar las tareas del proceso en Bonita" },
-      { status: 502 }
-    );
-  }
 
-  if (tieneObservaciones && !comment) {
-    console.warn("Se marcó que hay observaciones pero no se envió detalle de texto.");
-  }
+    try {
+      const analyzeTask = await completeTaskIfReady(normalizedCaseId, [TASKS.ANALYZE], {
+        tieneObservaciones,
+        proyecto: projectName,
+        hayProyectos,
+      });
+      if (analyzeTask) completedTasks.push(analyzeTask);
 
-  console.log({variables: {
-      hayProyectos,
-      tieneObservaciones,
-      proyecto: projectName,
-      observacion,
-    },
-    savedComment,
-    completedTasks});
+      if (tieneObservaciones) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const loadObsTask = await completeTaskIfReady(normalizedCaseId, [TASKS.LOAD_OBS], {
+          observacion,
+          proyecto: projectName,
+        });
+        if (loadObsTask) completedTasks.push(loadObsTask);
+      }
+    } catch (err) {
+      console.error("Error completando tareas de Bonita:", err);
+      return NextResponse.json(
+        { error: "No se pudieron completar las tareas del proceso en Bonita" },
+        { status: 502 }
+      );
+    }
+  }
 
   return NextResponse.json({
     ok: true,

@@ -28,6 +28,12 @@ function serializeProject(project) {
     status: project.status,
     createdAt: toIso(project.createdAt),
     updatedAt: toIso(project.updatedAt),
+    comments: (project.comments ?? []).map((comment) => ({
+      id: comment.id,
+      content: comment.content,
+      resolved: comment.resolved,
+      createdAt: toIso(comment.createdAt),
+    })),
     stages: (project.stages ?? []).map((stage) => ({
       id: stage.id,
       name: stage.name,
@@ -90,25 +96,6 @@ function serializeCollaboration(collaboration) {
   };
 }
 
-// function isProjectCompleted(project, collaborations = []) {
-//   const requests = (project?.stages ?? []).flatMap((stage) => stage?.requests ?? []);
-//   if (requests.length === 0) return false;
-
-//   const collabByRequestId = new Map();
-//   collaborations.forEach((collab) => {
-//     if (collab?.requestId) {
-//       collabByRequestId.set(collab.requestId, collab);
-//     }
-//   });
-
-//   return requests.every((req) => {
-//     const collab = collabByRequestId.get(req.id);
-//     if (!collab) return false;
-//     const status = (collab.status ?? "").toUpperCase();
-//     return status === "ACCEPTED" || status === "REJECTED";
-//   });
-// }
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get("projectId");
@@ -125,7 +112,7 @@ export async function GET(request) {
 
   const session = await store.get(sid);
   if (!session) {
-    return NextResponse.json({ error: "Sesión expirada" }, { status: 401 });
+    return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
   }
 
   if (session.roleName !== ROLES.ONG_ORIGINANTE && session.roleName !== ROLES.CONSEJO_DIRECTIVO) {
@@ -135,6 +122,9 @@ export async function GET(request) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
+      comments: {
+        orderBy: { createdAt: "desc" },
+      },
       stages: {
         include: {
           requests: {
@@ -154,9 +144,10 @@ export async function GET(request) {
     return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
   }
 
-  if (project.createdByOrgId !== session.userId) {
+  const isConsejo = session.roleName === ROLES.CONSEJO_DIRECTIVO;
+  if (!isConsejo && project.createdByOrgId !== session.userId) {
     return NextResponse.json(
-      { error: "No podés ver el detalle de este proyecto" },
+      { error: "No podes ver el detalle de este proyecto" },
       { status: 403 }
     );
   }
@@ -171,20 +162,6 @@ export async function GET(request) {
       createdAt: "desc",
     },
   });
-
-  // try {
-  //   const canMarkCompleted =
-  //     project.status !== "COMPLETED" &&
-  //     project.status !== "RUNNING" &&
-  //     isProjectCompleted(project, collaborations);
-
-  //   if (canMarkCompleted) {
-  //     await updateProjectStatus(projectId, "COMPLETED");
-  //     project.status = "COMPLETED";
-  //   }
-  // } catch (err) {
-  //   console.error("No se pudo actualizar el estado a COMPLETED:", err);
-  // }
 
   return NextResponse.json({
     project: serializeProject(project),
