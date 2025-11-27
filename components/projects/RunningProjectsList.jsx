@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 
@@ -34,13 +34,57 @@ function formatDate(value) {
 export default function RunningProjectsList({ projects = [] }) {
   const [comments, setComments] = useState({});
   const [pendingId, setPendingId] = useState(null);
+  const [projectList, setProjectList] = useState(projects);
+  const [caseId, setCaseId] = useState(null);
+  const [initializing, setInitializing] = useState(false);
 
-  const hasProjects = Array.isArray(projects) && projects.length > 0;
+  const hasProjects = Array.isArray(projectList) && projectList.length > 0;
+
+  useEffect(() => {
+    let active = true;
+
+    const hydrateFromApi = async () => {
+      setInitializing(true);
+      try {
+        const res = await fetch("/api/projects/running", { cache: "no-store" });
+        const payload = await res.json().catch(() => null);
+
+        if (!active) return;
+
+        if (!res.ok) {
+          throw new Error(payload?.error || "No se pudieron obtener los proyectos en ejecución.");
+        }
+
+        if (Array.isArray(payload?.projects)) {
+          setProjectList(payload.projects);
+        }
+        if (payload?.caseId) {
+          setCaseId(payload.caseId);
+        }
+      } catch (err) {
+        if (!active) return;
+        console.error("Error inicializando el caso en Bonita:", err);
+        toast.error(err.message || "No se pudo inicializar el proceso en Bonita.");
+      } finally {
+        if (active) setInitializing(false);
+      }
+    };
+
+    hydrateFromApi();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSend = async (project, hasObservations = true) => {
     const message = (comments[project.id] ?? "").trim();
     if (hasObservations && !message) {
       toast.error("Escribí una observación o marcá 'Sin observaciones'.");
+      return;
+    }
+    if (!caseId) {
+      toast.error("No se pudo iniciar el proceso en Bonita. Reintentá recargar la página.");
       return;
     }
     setPendingId(project.id);
@@ -52,6 +96,7 @@ export default function RunningProjectsList({ projects = [] }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          caseId,
           projectId: project.id,
           comment: hasObservations ? message : "",
           proyecto: project.name,
@@ -102,7 +147,7 @@ export default function RunningProjectsList({ projects = [] }) {
             listStyle: "none",
           }}
         >
-          {projects.map((project) => (
+          {projectList.map((project) => (
             <li
               key={project.id}
               className="project-card"
@@ -168,7 +213,7 @@ export default function RunningProjectsList({ projects = [] }) {
                     type="button"
                     className="auth-submit"
                     onClick={() => handleSend(project, true)}
-                    disabled={pendingId === project.id}
+                    disabled={pendingId === project.id || !caseId || initializing}
                   >
                     {pendingId === project.id ? "Enviando..." : "Enviar observación"}
                   </button>
@@ -176,7 +221,7 @@ export default function RunningProjectsList({ projects = [] }) {
                     type="button"
                     className="project-card__link"
                     onClick={() => handleSend(project, false)}
-                    disabled={pendingId === project.id}
+                    disabled={pendingId === project.id || !caseId || initializing}
                   >
                     {pendingId === project.id ? "Procesando..." : "Sin observaciones"}
                   </button>
